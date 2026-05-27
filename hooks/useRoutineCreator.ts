@@ -16,6 +16,7 @@ export function useRoutineCreator(onSaved: () => void) {
   const [loadingLibrary, setLoadingLibrary] = useState(false);
 
   const [createVisible, setCreateVisible] = useState(false);
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [newRoutineName, setNewRoutineName] = useState("");
   const [newRoutineType, setNewRoutineType] = useState<RoutineType>("weekly");
   const [newDays, setNewDays] = useState<RoutineDay[]>([]);
@@ -69,7 +70,29 @@ export function useRoutineCreator(onSaved: () => void) {
     }
   };
 
-  const closeCreateRoutine = () => setCreateVisible(false);
+  const closeCreateRoutine = () => {
+    setCreateVisible(false);
+    setEditingRoutineId(null);
+  };
+
+  const openEditRoutine = async (id: string) => {
+    const supabase = createClient();
+    const [, { data: routine }] = await Promise.all([
+      ensureLibrary(),
+      supabase.from("routines").select("id, data, type").eq("id", id).single(),
+    ]);
+    if (!routine) return;
+    const parsed = typeof routine.data === "string"
+      ? JSON.parse(routine.data) as { nombre: string; dias: RoutineDay[] }
+      : (routine.data as { nombre: string; dias: RoutineDay[] });
+    setEditingRoutineId(id);
+    setNewRoutineName(parsed.nombre ?? "");
+    setNewRoutineType((routine.type as RoutineType) ?? "weekly");
+    setNewDays(parsed.dias ?? []);
+    setEditingDayIdx(null);
+    setSaveError(null);
+    setCreateVisible(true);
+  };
 
   const addDay = () => {
     setNewDays((prev) => [
@@ -147,8 +170,8 @@ export function useRoutineCreator(onSaved: () => void) {
       const updated = [...prev];
       const ejercicios = [...updated[dayIdx].ejercicios];
       const ex = ejercicios[exIdx];
-      const peso = [...(ex.peso ?? Array.from({ length: ex.series }, () => ""))];
-      peso[seriesIdx] = value;
+      const base = ex.peso ?? Array.from({ length: ex.series }, () => "");
+      const peso = base.map((p, i) => i >= seriesIdx ? value : p);
       ejercicios[exIdx] = { ...ex, peso };
       updated[dayIdx] = { ...updated[dayIdx], ejercicios };
       return updated;
@@ -159,8 +182,7 @@ export function useRoutineCreator(onSaved: () => void) {
     setNewDays((prev) => {
       const updated = [...prev];
       const ejercicios = [...updated[dayIdx].ejercicios];
-      const reps = [...ejercicios[exIdx].reps];
-      reps[seriesIdx] = value;
+      const reps = ejercicios[exIdx].reps.map((r, i) => i >= seriesIdx ? value : r);
       ejercicios[exIdx] = { ...ejercicios[exIdx], reps };
       updated[dayIdx] = { ...updated[dayIdx], ejercicios };
       return updated;
@@ -279,8 +301,7 @@ export function useRoutineCreator(onSaved: () => void) {
       const updated = [...prev];
       const circuitos = [...(updated[dayIdx].circuitos ?? [])];
       const ejercicios = [...circuitos[circIdx].ejercicios];
-      const reps = [...ejercicios[exIdx].reps];
-      reps[seriesIdx] = value;
+      const reps = ejercicios[exIdx].reps.map((r, i) => i >= seriesIdx ? value : r);
       ejercicios[exIdx] = { ...ejercicios[exIdx], reps };
       circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
       updated[dayIdx] = { ...updated[dayIdx], circuitos };
@@ -300,8 +321,8 @@ export function useRoutineCreator(onSaved: () => void) {
       const circuitos = [...(updated[dayIdx].circuitos ?? [])];
       const ejercicios = [...circuitos[circIdx].ejercicios];
       const ex = ejercicios[exIdx];
-      const peso = [...(ex.peso ?? Array.from({ length: circuitos[circIdx].rondas }, () => ""))];
-      peso[seriesIdx] = value;
+      const base = ex.peso ?? Array.from({ length: circuitos[circIdx].rondas }, () => "");
+      const peso = base.map((p, i) => i >= seriesIdx ? value : p);
       ejercicios[exIdx] = { ...ex, peso };
       circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
       updated[dayIdx] = { ...updated[dayIdx], circuitos };
@@ -318,6 +339,18 @@ export function useRoutineCreator(onSaved: () => void) {
         ejercicios: circuitos[circIdx].ejercicios.filter((_, i) => i !== exIdx),
       };
       updated[dayIdx] = { ...updated[dayIdx], circuitos };
+      return updated;
+    });
+  };
+
+  const moveExercise = (dayIdx: number, exIdx: number, direction: "up" | "down") => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const ejercicios = [...updated[dayIdx].ejercicios];
+      const targetIdx = direction === "up" ? exIdx - 1 : exIdx + 1;
+      if (targetIdx < 0 || targetIdx >= ejercicios.length) return prev;
+      [ejercicios[exIdx], ejercicios[targetIdx]] = [ejercicios[targetIdx], ejercicios[exIdx]];
+      updated[dayIdx] = { ...updated[dayIdx], ejercicios };
       return updated;
     });
   };
@@ -377,24 +410,36 @@ export function useRoutineCreator(onSaved: () => void) {
     setSavingRoutine(true);
     setSaveError(null);
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setSaveError("Sesión expirada. Volvé a iniciar sesión.");
-      setSavingRoutine(false);
-      return;
+    const payload = { nombre: newRoutineName.trim(), dias: newDays };
+
+    let error;
+    if (editingRoutineId) {
+      ({ error } = await supabase
+        .from("routines")
+        .update({ data: payload, type: newRoutineType })
+        .eq("id", editingRoutineId));
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setSaveError("Sesión expirada. Volvé a iniciar sesión.");
+        setSavingRoutine(false);
+        return;
+      }
+      ({ error } = await supabase.from("routines").insert({
+        user_id: user.id,
+        data: payload,
+        type: newRoutineType,
+        status: "active",
+      }));
     }
-    const { error } = await supabase.from("routines").insert({
-      user_id: user.id,
-      data: { nombre: newRoutineName.trim(), dias: newDays },
-      type: newRoutineType,
-      status: "active",
-    });
+
     setSavingRoutine(false);
     if (error) {
       setSaveError(error.message);
       return;
     }
     setCreateVisible(false);
+    setEditingRoutineId(null);
     setNewRoutineName("");
     setNewRoutineType("weekly");
     setNewDays([]);
@@ -407,6 +452,7 @@ export function useRoutineCreator(onSaved: () => void) {
     library,
     loadingLibrary,
     createVisible,
+    editingRoutineId,
     saveError,
     newRoutineName,
     setNewRoutineName,
@@ -420,6 +466,7 @@ export function useRoutineCreator(onSaved: () => void) {
     circuitExPickerVisible,
     setCircuitExPickerVisible,
     openCreateRoutine,
+    openEditRoutine,
     closeCreateRoutine,
     changeRoutineType,
     addDay,
@@ -439,6 +486,7 @@ export function useRoutineCreator(onSaved: () => void) {
     updateCircuitExRep,
     updateCircuitExPeso,
     removeCircuitEx,
+    moveExercise,
     moveCircuitEx,
     openCircuitExPicker,
     pickCircuitExercise,

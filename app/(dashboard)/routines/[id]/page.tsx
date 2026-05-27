@@ -70,12 +70,14 @@ export default async function RoutineDetailPage({ params }: Props) {
 
   const isStaff = membership.role === "admin" || membership.role === "coach";
 
-  // Training groups and existing shares (staff only)
-  let trainingGroups: { id: string; name: string }[] = [];
-  let existingShares: { id: string; group_id: string }[] = [];
+  // Training groups, shares, and players (staff only)
+  let trainingGroups:      { id: string; name: string }[]        = [];
+  let existingGroupShares: { id: string; group_id: string }[]    = [];
+  let players:             { id: string; name: string }[]        = [];
+  let existingPlayerShares:{ id: string; player_id: string }[]   = [];
 
   if (isStaff) {
-    const [{ data: grps }, { data: shs }] = await Promise.all([
+    const [{ data: grps }, { data: allShares }, { data: playerMembers }] = await Promise.all([
       supabase
         .from("club_groups")
         .select("id, name")
@@ -84,13 +86,32 @@ export default async function RoutineDetailPage({ params }: Props) {
         .order("name"),
       supabase
         .from("routine_shares")
-        .select("id, target_group_id")
+        .select("id, target_type, target_group_id, target_user_id")
         .eq("routine_id", id)
-        .eq("target_type", "group")
         .eq("club_id", club.id),
+      supabase
+        .from("club_members")
+        .select("user_id, profile:profiles(name)")
+        .eq("club_id", club.id)
+        .eq("role", "player")
+        .eq("status", "active"),
     ]);
+
     trainingGroups = grps ?? [];
-    existingShares = (shs ?? []).map(s => ({ id: s.id, group_id: s.target_group_id as string }));
+
+    type RawShare = { id: string; target_type: string; target_group_id: string | null; target_user_id: string | null };
+    const shares = (allShares ?? []) as RawShare[];
+    existingGroupShares  = shares
+      .filter(s => s.target_type === "group" && s.target_group_id)
+      .map(s => ({ id: s.id, group_id: s.target_group_id! }));
+    existingPlayerShares = shares
+      .filter(s => s.target_type === "player" && s.target_user_id)
+      .map(s => ({ id: s.id, player_id: s.target_user_id! }));
+
+    type PlayerMember = { user_id: string; profile: { name: string } | null };
+    players = ((playerMembers ?? []) as unknown as PlayerMember[])
+      .map(m => ({ id: m.user_id, name: m.profile?.name?.trim() || "Sin nombre" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   const progress = routine.progress as { completed_days: number[]; skipped_days?: number[] } | null;
@@ -242,7 +263,9 @@ export default async function RoutineDetailPage({ params }: Props) {
             <ShareGroupsPanel
               routineId={id}
               groups={trainingGroups}
-              existingShares={existingShares}
+              existingGroupShares={existingGroupShares}
+              players={players}
+              existingPlayerShares={existingPlayerShares}
             />
           )}
 

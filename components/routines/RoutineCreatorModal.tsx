@@ -4,6 +4,7 @@ import React from "react";
 import type { useRoutineCreator } from "@/hooks/useRoutineCreator";
 import type { RoutineCircuit, RoutineDayExercise, RoutineDay } from "@/types/routine";
 import ExercisePicker from "./ExercisePicker";
+import RepsPicker from "./RepsPicker";
 
 const DESCANSO_OPTIONS = ["30s", "45s", "60s", "90s", "2min", "3min", "5min"];
 
@@ -48,6 +49,9 @@ function ExerciseRow({
   onUpdateSeries,
   onUpdateRep,
   onUpdatePeso,
+  onMove,
+  canMoveUp,
+  canMoveDown,
 }: {
   ej: RoutineDayExercise;
   onRemove: () => void;
@@ -55,6 +59,9 @@ function ExerciseRow({
   onUpdateSeries: (v: number) => void;
   onUpdateRep: (si: number, v: string) => void;
   onUpdatePeso: (si: number, v: string) => void;
+  onMove: (dir: "up" | "down") => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
   return (
     <div
@@ -66,15 +73,31 @@ function ExerciseRow({
         border: "1px solid var(--pg-border)",
       }}
     >
-      {/* Name + remove */}
+      {/* Name + reorder + remove */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--pg-text)" }}>{ej.nombre}</span>
-        <button
-          onClick={onRemove}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: 0 }}
-        >
-          ×
-        </button>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--pg-text)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ej.nombre}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+          <button
+            onClick={() => onMove("up")}
+            disabled={!canMoveUp}
+            style={{ ...stepperBtn, width: 22, height: 22, opacity: canMoveUp ? 1 : 0.3 }}
+          >
+            ↑
+          </button>
+          <button
+            onClick={() => onMove("down")}
+            disabled={!canMoveDown}
+            style={{ ...stepperBtn, width: 22, height: 22, opacity: canMoveDown ? 1 : 0.3 }}
+          >
+            ↓
+          </button>
+          <button
+            onClick={onRemove}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: "0 0 0 4px" }}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Series + descanso */}
@@ -131,12 +154,7 @@ function ExerciseRow({
         {ej.reps.map((rep, si) => (
           <React.Fragment key={si}>
             <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>S{si + 1}</span>
-            <input
-              value={rep}
-              onChange={(e) => onUpdateRep(si, e.target.value)}
-              placeholder="10"
-              style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center" }}
-            />
+            <RepsPicker value={rep} onChange={(v) => onUpdateRep(si, v)} />
             <input
               value={ej.peso?.[si] ?? ""}
               onChange={(e) => onUpdatePeso(si, e.target.value)}
@@ -300,13 +318,8 @@ function CircuitCard({
             <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>PESO (kg)</span>
             {ex.reps.map((rep, ri) => (
               <React.Fragment key={ri}>
-                <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>S{ri + 1}</span>
-                <input
-                  value={rep}
-                  onChange={(e) => onUpdateExRep(exIdx, ri, e.target.value)}
-                  placeholder="10"
-                  style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center" }}
-                />
+                <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>R{ri + 1}</span>
+                <RepsPicker value={rep} onChange={(v) => onUpdateExRep(exIdx, ri, v)} />
                 <input
                   value={ex.peso?.[ri] ?? ""}
                   onChange={(e) => onUpdateExPeso(exIdx, ri, e.target.value)}
@@ -355,6 +368,7 @@ function DayCard({
   onUpdateRep,
   onUpdatePeso,
   onOpenExPicker,
+  onMoveExercise,
   onAddCircuit,
   onUpdateCircuit,
   onRemoveCircuit,
@@ -377,6 +391,7 @@ function DayCard({
   onUpdateRep: (exIdx: number, si: number, v: string) => void;
   onUpdatePeso: (exIdx: number, si: number, v: string) => void;
   onOpenExPicker: () => void;
+  onMoveExercise: (exIdx: number, dir: "up" | "down") => void;
   onAddCircuit: () => void;
   onUpdateCircuit: (circIdx: number, f: keyof RoutineCircuit, v: string | number) => void;
   onRemoveCircuit: (circIdx: number) => void;
@@ -453,6 +468,9 @@ function DayCard({
               onUpdateSeries={(v) => onUpdateSeries(exIdx, v)}
               onUpdateRep={(si, v) => onUpdateRep(exIdx, si, v)}
               onUpdatePeso={(si, v) => onUpdatePeso(exIdx, si, v)}
+              onMove={(dir) => onMoveExercise(exIdx, dir)}
+              canMoveUp={exIdx > 0}
+              canMoveDown={exIdx < day.ejercicios.length - 1}
             />
           ))}
 
@@ -515,6 +533,7 @@ type Props = ReturnType<typeof useRoutineCreator>;
 
 export default function RoutineCreatorModal({
   createVisible,
+  editingRoutineId,
   closeCreateRoutine,
   newRoutineName,
   setNewRoutineName,
@@ -547,11 +566,13 @@ export default function RoutineCreatorModal({
   updateCircuitExRep,
   updateCircuitExPeso,
   removeCircuitEx,
+  moveExercise,
   moveCircuitEx,
   openCircuitExPicker,
   pickCircuitExercises,
   saveRoutine,
 }: Props) {
+  const isEditing = !!editingRoutineId;
   const canSave =
     !!newRoutineName.trim() &&
     newDays.length > 0 &&
@@ -599,7 +620,7 @@ export default function RoutineCreatorModal({
           }}
         >
           <span style={{ fontSize: 18, fontWeight: 700, color: "var(--pg-text)" }}>
-            Crear rutina
+            {isEditing ? "Editar rutina" : "Crear rutina"}
           </span>
           <button
             onClick={closeCreateRoutine}
@@ -697,6 +718,7 @@ export default function RoutineCreatorModal({
               onUpdateRep={(exIdx, si, v) => updateExerciseRep(dayIdx, exIdx, si, v)}
               onUpdatePeso={(exIdx, si, v) => updateExercisePeso(dayIdx, exIdx, si, v)}
               onOpenExPicker={() => openExPickerForDay(dayIdx)}
+              onMoveExercise={(exIdx, dir) => moveExercise(dayIdx, exIdx, dir)}
               onAddCircuit={() => addCircuit(dayIdx)}
               onUpdateCircuit={(circIdx, f, v) => updateCircuit(dayIdx, circIdx, f, v)}
               onRemoveCircuit={(circIdx) => removeCircuit(dayIdx, circIdx)}
@@ -767,7 +789,7 @@ export default function RoutineCreatorModal({
                   flexShrink: 0,
                 }}
               >
-                {savingRoutine ? "Guardando..." : "Guardar rutina"}
+                {savingRoutine ? "Guardando..." : isEditing ? "Guardar cambios" : "Guardar rutina"}
               </button>
             )}
           </div>

@@ -61,3 +61,67 @@ export async function unshareRoutine(
   revalidatePath(`/routines/${routineId}`);
   return { ok: true };
 }
+
+export async function shareRoutineWithPlayer(
+  routineId: string,
+  playerId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await getStaffContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const { data: playerMembership } = await ctx.supabase
+    .from("club_members")
+    .select("id")
+    .eq("club_id", ctx.clubId)
+    .eq("user_id", playerId)
+    .eq("role", "player")
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!playerMembership) {
+    return { ok: false, error: "El jugador no pertenece a este club." };
+  }
+
+  const { data: existing } = await ctx.supabase
+    .from("routine_shares")
+    .select("id")
+    .eq("routine_id", routineId)
+    .eq("target_type", "player")
+    .eq("target_user_id", playerId)
+    .maybeSingle();
+
+  if (existing) return { ok: true };
+
+  const { error } = await ctx.supabase.from("routine_shares").insert({
+    routine_id: routineId,
+    club_id: ctx.clubId,
+    shared_by: ctx.user.id,
+    target_type: "player",
+    target_user_id: playerId,
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/routines/${routineId}`);
+  return { ok: true };
+}
+
+export async function unshareRoutineFromPlayer(
+  shareId: string,
+  routineId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await getStaffContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const { error } = await ctx.supabase
+    .from("routine_shares")
+    .delete()
+    .eq("id", shareId)
+    .eq("club_id", ctx.clubId)
+    .eq("target_type", "player");
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/routines/${routineId}`);
+  return { ok: true };
+}

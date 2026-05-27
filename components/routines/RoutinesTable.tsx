@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { useRoutineCreator } from "@/hooks/useRoutineCreator";
 import RoutineCreatorModal from "./RoutineCreatorModal";
 
@@ -32,13 +32,14 @@ const TABS: { key: Filter; label: string }[] = [
   { key: "past",   label: "Finalizadas" },
 ];
 
-const COL = "1fr 90px 46px 72px 1fr 90px";
-const HEADERS = ["Nombre", "Tipo", "Días", "Ejercicios", "Jugador", "Estado"];
+const COL = "1fr 90px 46px 72px 1fr 90px 32px";
+const HEADERS = ["Nombre", "Tipo", "Días", "Ejercicios", "Creador", "Estado", ""];
 
 export default function RoutinesTable({ routines }: { routines: RoutineRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
   const router = useRouter();
   const creator = useRoutineCreator(() => router.refresh());
+  const { openEditRoutine } = creator;
 
   const filtered = filter === "all"
     ? routines
@@ -119,6 +120,13 @@ export default function RoutinesTable({ routines }: { routines: RoutineRow[] }) 
               <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: STATUS_BG[r.status], color: STATUS_COLOR[r.status], display: "inline-block", width: "fit-content" }}>
                 {STATUS_LABELS[r.status]}
               </span>
+              <button
+                onClick={() => openEditRoutine(r.id)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}
+                title="Editar rutina"
+              >
+                <Pencil size={13} />
+              </button>
             </div>
           ))}
 
