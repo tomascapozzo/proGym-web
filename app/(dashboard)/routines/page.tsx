@@ -5,10 +5,12 @@ import Topbar from "@/components/dashboard/Topbar";
 import RoutinesTable from "@/components/routines/RoutinesTable";
 import type { RoutineRow } from "@/components/routines/RoutinesTable";
 
+type ParsedData = { nombre?: string; dias?: unknown[] };
+
 type RawRoutine = {
   id: string;
   user_id: string;
-  data: { nombre?: string; dias?: unknown[] } | null;
+  data: ParsedData | string | null;
   type: string;
   status: string;
 };
@@ -17,6 +19,14 @@ type RawDay = {
   ejercicios?: unknown[];
   circuitos?: Array<{ ejercicios?: unknown[] }>;
 };
+
+function parseData(raw: ParsedData | string | null): ParsedData | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as ParsedData; } catch { return null; }
+  }
+  return raw;
+}
 
 function countExercises(dias: unknown[]): number {
   return (dias as RawDay[]).reduce((sum, d) => {
@@ -53,10 +63,11 @@ export default async function RoutinesPage() {
     .order("created_at", { ascending: false });
 
   const routines: RoutineRow[] = ((rawRoutines ?? []) as unknown as RawRoutine[]).map((r) => {
-    const dias = r.data?.dias ?? [];
+    const parsed = parseData(r.data);
+    const dias = parsed?.dias ?? [];
     return {
       id:             r.id,
-      name:           r.data?.nombre || "Sin nombre",
+      name:           parsed?.nombre || "Sin nombre",
       type:           (r.type as RoutineRow["type"]) || "daily",
       status:         (r.status as RoutineRow["status"]) || "active",
       daysCount:      dias.length,

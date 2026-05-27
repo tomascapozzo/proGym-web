@@ -524,6 +524,7 @@ export default function RoutineCreatorModal({
   editingDayIdx,
   setEditingDayIdx,
   savingRoutine,
+  saveError,
   exPickerVisible,
   setExPickerVisible,
   circuitExPickerVisible,
@@ -732,33 +733,43 @@ export default function RoutineCreatorModal({
         </div>
 
         {/* Footer */}
-        {canSave && (
+        {(canSave || saveError) && (
           <div
             style={{
               padding: "14px 22px",
               borderTop: "1px solid var(--pg-border)",
               flexShrink: 0,
               display: "flex",
+              alignItems: "center",
               justifyContent: "flex-end",
+              gap: 12,
             }}
           >
-            <button
-              onClick={saveRoutine}
-              disabled={savingRoutine}
-              style={{
-                padding: "12px 32px",
-                borderRadius: 12,
-                border: "none",
-                background: "var(--pg-accent)",
-                color: "var(--pg-accent-text)",
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: savingRoutine ? "default" : "pointer",
-                opacity: savingRoutine ? 0.7 : 1,
-              }}
-            >
-              {savingRoutine ? "Guardando..." : "Guardar rutina"}
-            </button>
+            {saveError && (
+              <span style={{ fontSize: 12, color: "var(--pg-red)", flex: 1 }}>
+                {saveError}
+              </span>
+            )}
+            {canSave && (
+              <button
+                onClick={saveRoutine}
+                disabled={savingRoutine}
+                style={{
+                  padding: "12px 32px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "var(--pg-accent)",
+                  color: "var(--pg-accent-text)",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: savingRoutine ? "default" : "pointer",
+                  opacity: savingRoutine ? 0.7 : 1,
+                  flexShrink: 0,
+                }}
+              >
+                {savingRoutine ? "Guardando..." : "Guardar rutina"}
+              </button>
+            )}
           </div>
         )}
       </div>

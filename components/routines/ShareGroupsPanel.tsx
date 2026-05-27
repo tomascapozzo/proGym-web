@@ -45,7 +45,7 @@ export default function ShareGroupsPanel({
     } else {
       const result = await shareRoutine(routineId, groupId);
       if (result.ok) {
-        setShares(prev => [...prev, { id: crypto.randomUUID(), group_id: groupId }]);
+        setShares(prev => [...prev, { id: `tmp-${Date.now()}-${Math.random()}`, group_id: groupId }]);
       } else {
         setError(result.error ?? "Error al compartir.");
       }

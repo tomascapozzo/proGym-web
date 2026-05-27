@@ -43,10 +43,21 @@ export default async function SquadDetailPage({
 
   const isStaff = membership.role === "admin" || membership.role === "coach";
 
-  const { data: memberRowsRaw } = await supabase
+  const { data: groupMemberIdsRaw } = await supabase
     .from("club_group_members")
-    .select("user_id, profile:profiles(id, name, username)")
+    .select("user_id")
     .eq("group_id", id);
+
+  const existingIds = new Set((groupMemberIdsRaw ?? []).map(r => r.user_id));
+
+  const memberUserIds = [...existingIds];
+  const { data: memberRowsRaw } = memberUserIds.length > 0
+    ? await supabase
+        .from("club_members")
+        .select("user_id, profile:profiles(id, name, username)")
+        .eq("club_id", club.id)
+        .in("user_id", memberUserIds)
+    : { data: [] as null };
 
   const memberRows = (memberRowsRaw ?? []) as unknown as ProfileRow[];
 
@@ -57,8 +68,6 @@ export default async function SquadDetailPage({
       name: r.profile!.name ?? "",
       username: r.profile!.username ?? "",
     }));
-
-  const existingIds = new Set((memberRowsRaw ?? []).map(r => r.user_id));
 
   const { data: clubMembersRaw } = await supabase
     .from("club_members")

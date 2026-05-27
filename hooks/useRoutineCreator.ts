@@ -21,6 +21,7 @@ export function useRoutineCreator(onSaved: () => void) {
   const [newDays, setNewDays] = useState<RoutineDay[]>([]);
   const [editingDayIdx, setEditingDayIdx] = useState<number | null>(null);
   const [savingRoutine, setSavingRoutine] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [exPickerVisible, setExPickerVisible] = useState(false);
   const [exPickerDayIdx, setExPickerDayIdx] = useState(0);
@@ -374,23 +375,31 @@ export function useRoutineCreator(onSaved: () => void) {
     );
     if (!hasContent) return;
     setSavingRoutine(true);
+    setSaveError(null);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("routines").insert({
-        user_id: user.id,
-        data: { nombre: newRoutineName.trim(), dias: newDays },
-        type: newRoutineType,
-        status: "active",
-        progress: null,
-      });
+    if (!user) {
+      setSaveError("Sesión expirada. Volvé a iniciar sesión.");
+      setSavingRoutine(false);
+      return;
     }
+    const { error } = await supabase.from("routines").insert({
+      user_id: user.id,
+      data: { nombre: newRoutineName.trim(), dias: newDays },
+      type: newRoutineType,
+      status: "active",
+    });
     setSavingRoutine(false);
+    if (error) {
+      setSaveError(error.message);
+      return;
+    }
     setCreateVisible(false);
     setNewRoutineName("");
     setNewRoutineType("weekly");
     setNewDays([]);
     setEditingDayIdx(null);
+    setSaveError(null);
     onSaved();
   };
 
@@ -398,6 +407,7 @@ export function useRoutineCreator(onSaved: () => void) {
     library,
     loadingLibrary,
     createVisible,
+    saveError,
     newRoutineName,
     setNewRoutineName,
     newRoutineType,

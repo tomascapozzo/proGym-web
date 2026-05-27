@@ -38,8 +38,8 @@ export default function ExercisePicker({
       result = result.filter(
         (e) =>
           e.name.toLowerCase().includes(q) ||
-          e.muscle_group.toLowerCase().includes(q) ||
-          e.movement_pattern.toLowerCase().includes(q),
+          (e.muscle_group ?? "").toLowerCase().includes(q) ||
+          (e.movement_pattern ?? "").toLowerCase().includes(q),
       );
     }
     setFiltered(result);

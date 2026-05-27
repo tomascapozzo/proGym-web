@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useRoutineCreator } from "@/hooks/useRoutineCreator";
@@ -36,7 +37,8 @@ const HEADERS = ["Nombre", "Tipo", "Días", "Ejercicios", "Jugador", "Estado"];
 
 export default function RoutinesTable({ routines }: { routines: RoutineRow[] }) {
   const [filter, setFilter] = useState<Filter>("all");
-  const creator = useRoutineCreator(() => {});
+  const router = useRouter();
+  const creator = useRoutineCreator(() => router.refresh());
 
   const filtered = filter === "all"
     ? routines
