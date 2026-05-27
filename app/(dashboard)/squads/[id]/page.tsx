@@ -57,7 +57,7 @@ export default async function SquadDetailPage({
         .select("user_id, profile:profiles(id, name, username)")
         .eq("club_id", club.id)
         .in("user_id", memberUserIds)
-    : { data: [] as null };
+    : { data: [] };
 
   const memberRows = (memberRowsRaw ?? []) as unknown as ProfileRow[];
 
