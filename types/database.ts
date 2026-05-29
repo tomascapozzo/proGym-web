@@ -281,6 +281,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      routine_enrollments: {
+        Row: {
+          id: string;
+          routine_id: string;
+          user_id: string;
+          status: string;
+          progress: Json | null;
+          enrolled_at: string;
+          source_share_id: string | null;
+        };
+        Insert: {
+          routine_id: string;
+          user_id: string;
+          status?: string;
+          progress?: Json | null;
+          source_share_id?: string | null;
+        };
+        Update: {
+          status?: string;
+          progress?: Json | null;
+          source_share_id?: string | null;
+        };
+        Relationships: [];
+      };
       club_invitations: {
         Row: {
           id: string;
