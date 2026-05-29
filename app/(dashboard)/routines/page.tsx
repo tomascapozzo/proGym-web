@@ -43,23 +43,24 @@ export default async function RoutinesPage() {
 
   const supabase = await createClient();
 
-  // All members with their profile names
-  const { data: membersRaw } = await supabase
+  // Staff members (admins + coaches) with their profile names
+  const { data: staffRaw } = await supabase
     .from("club_members")
     .select("user_id, profile:profiles(name)")
-    .eq("club_id", club.id);
+    .eq("club_id", club.id)
+    .in("role", ["admin", "coach"]);
 
   type MemberRef = { user_id: string; profile: { name: string } | null };
-  const members = (membersRaw ?? []) as unknown as MemberRef[];
-  const memberIds = members.map(m => m.user_id);
-  const nameByUserId = new Map(members.map(m => [m.user_id, m.profile?.name || "—"]));
+  const staff = (staffRaw ?? []) as unknown as MemberRef[];
+  const staffIds = staff.map(m => m.user_id);
+  const nameByUserId = new Map(staff.map(m => [m.user_id, m.profile?.name || "—"]));
 
-  // All routines for club members (requires coaches_read_member_routines policy)
+  // Coach-created templates only (owned by staff, not player copies)
   const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
   const { data: rawRoutines } = await supabase
     .from("routines")
     .select("id, user_id, data, type, status")
-    .in("user_id", memberIds.length ? memberIds : [PLACEHOLDER])
+    .in("user_id", staffIds.length ? staffIds : [PLACEHOLDER])
     .order("created_at", { ascending: false });
 
   const routines: RoutineRow[] = ((rawRoutines ?? []) as unknown as RawRoutine[]).map((r) => {

@@ -52,16 +52,36 @@ export default async function RoutineDetailPage({ params }: Props) {
     .eq("id", routine.user_id)
     .single();
 
-  // Recent sessions using this routine
+  // All players enrolled in this routine
+  const { data: enrollmentsRaw } = await supabase
+    .from("routine_enrollments")
+    .select("user_id, status, progress, enrolled_at, profile:profiles!user_id(name)")
+    .eq("routine_id", id);
+
+  type EnrollmentRef = {
+    user_id: string;
+    status: string;
+    progress: { completed_days: number[] } | null;
+    enrolled_at: string;
+    profile: { name: string } | null;
+  };
+  const enrollments = (enrollmentsRaw ?? []) as unknown as EnrollmentRef[];
+  const enrolledUserIds = enrollments.map(e => e.user_id);
+  const playerNameById = new Map(enrollments.map(e => [e.user_id, e.profile?.name || "—"]));
+
+  // Recent sessions from any enrolled player for this routine
+  const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
   const { data: sessionsRaw } = await supabase
     .from("workout_logs")
-    .select("id, created_at, duration_seconds, routine_day_index, routine_day_name, exercises")
+    .select("id, user_id, created_at, duration_seconds, routine_day_index, routine_day_name, exercises")
     .eq("routine_id", id)
+    .in("user_id", enrolledUserIds.length ? enrolledUserIds : [PLACEHOLDER])
     .order("created_at", { ascending: false })
-    .limit(15);
+    .limit(20);
 
   const sessions = (sessionsRaw ?? []).map(s => ({
     id: s.id,
+    playerName: playerNameById.get(s.user_id) ?? "—",
     date: formatDate(s.created_at),
     dayName: s.routine_day_name ?? `Día ${(s.routine_day_index ?? 0) + 1}`,
     duration: formatDuration(s.duration_seconds),
@@ -225,7 +245,10 @@ export default async function RoutineDetailPage({ params }: Props) {
             {sessions.map(s => (
               <div key={s.id} className="pg-row" style={{ padding: "9px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pg-text)" }}>{s.dayName}</span>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pg-text)" }}>{s.dayName}</span>
+                    <span style={{ fontSize: 10, color: "var(--pg-muted)", marginLeft: 6 }}>{s.playerName}</span>
+                  </div>
                   {s.duration && <span style={{ fontSize: 10, color: "var(--pg-accent)", fontVariantNumeric: "tabular-nums" }}>{s.duration}</span>}
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
@@ -236,28 +259,43 @@ export default async function RoutineDetailPage({ params }: Props) {
             ))}
             {sessions.length === 0 && (
               <div style={{ padding: "20px 12px", textAlign: "center", fontSize: 11, color: "var(--pg-disabled)" }}>
-                Sin sesiones registradas aún.
+                {enrollments.length === 0 ? "Nadie asignado todavía." : "Sin sesiones registradas aún."}
               </div>
             )}
           </div>
 
-          {/* Progress summary */}
-          {dias.length > 0 && (
-            <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, padding: "11px 12px" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)", marginBottom: 8 }}>Progreso</div>
-              <div style={{ display: "flex", gap: 3, marginBottom: 7 }}>
-                {dias.map((_, i) => (
-                  <div key={i} style={{ flex: 1, height: 4, background: completedDays.includes(i) ? "var(--pg-accent)" : "var(--pg-surface)", borderRadius: 2 }} />
-                ))}
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{completedDays.length} de {dias.length} días</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--pg-accent)", fontVariantNumeric: "tabular-nums" }}>
-                  {dias.length > 0 ? Math.round((completedDays.length / dias.length) * 100) : 0}%
-                </span>
-              </div>
+          {/* Enrollment summary */}
+          <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--pg-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>Jugadores asignados</span>
+              <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{enrollments.length}</span>
             </div>
-          )}
+            {enrollments.map(e => {
+              const completed = e.progress?.completed_days?.length ?? 0;
+              const pct = dias.length > 0 ? Math.round((completed / dias.length) * 100) : 0;
+              const statusColor = e.status === "active" ? "var(--pg-green)" : e.status === "pending_restart" ? "var(--pg-blue)" : "var(--pg-muted)";
+              const statusLabel = e.status === "active" ? "Activa" : e.status === "pending_restart" ? "Completada" : "Finalizada";
+              return (
+                <div key={e.user_id} className="pg-row" style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pg-text)" }}>{playerNameById.get(e.user_id) ?? "—"}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: statusColor }}>{statusLabel}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 2 }}>
+                    {dias.map((_, i) => (
+                      <div key={i} style={{ flex: 1, height: 3, background: (e.progress?.completed_days ?? []).includes(i) ? "var(--pg-accent)" : "var(--pg-surface)", borderRadius: 2 }} />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 9, color: "var(--pg-muted)", marginTop: 2, display: "block" }}>{completed}/{dias.length} días · {pct}%</span>
+                </div>
+              );
+            })}
+            {enrollments.length === 0 && (
+              <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 11, color: "var(--pg-disabled)" }}>
+                Sin jugadores asignados.
+              </div>
+            )}
+          </div>
 
           {isStaff && (
             <ShareGroupsPanel
