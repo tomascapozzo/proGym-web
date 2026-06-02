@@ -98,10 +98,17 @@ export default function ExercisePicker({
     setSaving(true);
     setFormError("");
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setFormError("Sesión expirada. Volvé a iniciar sesión.");
+      setSaving(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("club_custom_exercises")
       .insert({
         club_id: clubId,
+        created_by: user.id,
         name: form.name.trim(),
         muscle_group: form.muscle_group.trim(),
         movement_pattern: form.movement_pattern.trim(),
