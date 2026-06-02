@@ -4,12 +4,29 @@ export type LibraryExercise = {
   muscle_group: string;
   movement_pattern: string;
   equipment: string;
+  // Present when querying exercises_combined view
+  source?: "global" | "custom";
+  club_id?: string | null;
+};
+
+export type CustomExercise = {
+  id: string;
+  club_id: string;
+  created_by: string;
+  name: string;
+  muscle_group: string;
+  movement_pattern: string;
+  equipment: string;
+  description: string | null;
+  created_at: string;
 };
 
 export type ExerciseEntry = {
   nombre: string;
   reps: string[];
   peso?: string[];
+  nota?: string;
+  rpe?: boolean;
 };
 
 export type RoutineDayExercise = ExerciseEntry & {
@@ -22,6 +39,7 @@ export type RoutineCircuit = {
   rondas: number;
   descanso: string;
   ejercicios: ExerciseEntry[];
+  rpe?: boolean;
 };
 
 export type RoutineDay = {
@@ -33,7 +51,7 @@ export type RoutineDay = {
 
 export type RoutineType = "daily" | "weekly" | "monthly";
 export type RoutineStatus = "active" | "past" | "pending_restart";
-export type RpePromptType = "serie" | "bloque" | "sesion";
+export type RpePromptType = "serie" | "bloque" | "sesion" | "none";
 
 export type RoutineProgress = {
   completed_days: number[];

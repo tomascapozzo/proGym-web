@@ -83,7 +83,7 @@ export default async function RoutinesPage() {
         title="Rutinas"
         subtitle={`${routines.filter(r => r.status === "active").length} activas`}
       />
-      <RoutinesTable routines={routines} />
+      <RoutinesTable routines={routines} clubId={club.id} />
     </>
   );
 }

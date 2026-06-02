@@ -18,6 +18,7 @@ const RPE_OPTIONS: { value: RpePromptType; label: string; desc: string }[] = [
   { value: "serie",  label: "Por serie",   desc: "Al finalizar cada serie" },
   { value: "bloque", label: "Por bloque",  desc: "Al finalizar cada circuito o superset" },
   { value: "sesion", label: "Por sesión",  desc: "Al finalizar el entrenamiento" },
+  { value: "none",   label: "Sin RPE",     desc: "No registrar esfuerzo" },
 ];
 
 const inputStyle: React.CSSProperties = {
@@ -55,6 +56,8 @@ function ExerciseRow({
   onUpdateSeries,
   onUpdateRep,
   onUpdatePeso,
+  onUpdateNota,
+  onToggleRpe,
   onMove,
   canMoveUp,
   canMoveDown,
@@ -65,6 +68,8 @@ function ExerciseRow({
   onUpdateSeries: (v: number) => void;
   onUpdateRep: (si: number, v: string) => void;
   onUpdatePeso: (si: number, v: string) => void;
+  onUpdateNota: (v: string) => void;
+  onToggleRpe: () => void;
   onMove: (dir: "up" | "down") => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -170,6 +175,32 @@ function ExerciseRow({
           </React.Fragment>
         ))}
       </div>
+
+      {/* Note + RPE toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+        <input
+          value={ej.nota ?? ""}
+          onChange={(e) => onUpdateNota(e.target.value)}
+          placeholder="Agregar nota..."
+          style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "5px 8px", color: ej.nota ? "var(--pg-text)" : "var(--pg-muted)" }}
+        />
+        <button
+          onClick={onToggleRpe}
+          style={{
+            fontSize: 10,
+            padding: "5px 10px",
+            borderRadius: 5,
+            border: `1px solid ${ej.rpe ? "var(--pg-blue)" : "var(--pg-border)"}`,
+            background: ej.rpe ? "var(--pg-blue-dim)" : "transparent",
+            color: ej.rpe ? "var(--pg-blue)" : "var(--pg-muted)",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Pedir RPE
+        </button>
+      </div>
     </div>
   );
 }
@@ -180,20 +211,26 @@ function CircuitCard({
   circ,
   onUpdate,
   onRemove,
+  onToggleRpe,
   onOpenExPicker,
   onMoveEx,
   onRemoveEx,
   onUpdateExRep,
   onUpdateExPeso,
+  onUpdateExNota,
+  onToggleExRpe,
 }: {
   circ: RoutineCircuit;
   onUpdate: (field: keyof RoutineCircuit, v: string | number) => void;
   onRemove: () => void;
+  onToggleRpe: () => void;
   onOpenExPicker: () => void;
   onMoveEx: (exIdx: number, dir: "up" | "down") => void;
   onRemoveEx: (exIdx: number) => void;
   onUpdateExRep: (exIdx: number, ri: number, v: string) => void;
   onUpdateExPeso: (exIdx: number, ri: number, v: string) => void;
+  onUpdateExNota: (exIdx: number, v: string) => void;
+  onToggleExRpe: (exIdx: number) => void;
 }) {
   return (
     <div
@@ -227,6 +264,22 @@ function CircuitCard({
           placeholder="Nombre del circuito"
           style={{ ...inputStyle, flex: 1 }}
         />
+        <button
+          onClick={onToggleRpe}
+          style={{
+            fontSize: 10,
+            padding: "4px 9px",
+            borderRadius: 5,
+            border: `1px solid ${circ.rpe ? "var(--pg-blue)" : "rgba(124,58,237,0.3)"}`,
+            background: circ.rpe ? "var(--pg-blue-dim)" : "transparent",
+            color: circ.rpe ? "var(--pg-blue)" : "#C4B5FD",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Pedir RPE
+        </button>
         <button
           onClick={onRemove}
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: 0, flexShrink: 0 }}
@@ -335,6 +388,32 @@ function CircuitCard({
               </React.Fragment>
             ))}
           </div>
+
+          {/* Note + RPE toggle */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <input
+              value={ex.nota ?? ""}
+              onChange={(e) => onUpdateExNota(exIdx, e.target.value)}
+              placeholder="Agregar nota..."
+              style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "4px 7px", color: ex.nota ? "var(--pg-text)" : "var(--pg-muted)" }}
+            />
+            <button
+              onClick={() => onToggleExRpe(exIdx)}
+              style={{
+                fontSize: 10,
+                padding: "4px 9px",
+                borderRadius: 5,
+                border: `1px solid ${ex.rpe ? "var(--pg-blue)" : "var(--pg-border)"}`,
+                background: ex.rpe ? "var(--pg-blue-dim)" : "transparent",
+                color: ex.rpe ? "var(--pg-blue)" : "var(--pg-muted)",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              Pedir RPE
+            </button>
+          </div>
         </div>
       ))}
 
@@ -367,12 +446,15 @@ function DayCard({
   onToggleEdit,
   canRemove,
   onRemove,
+  onDuplicate,
   onUpdateField,
   onRemoveExercise,
   onUpdateDescanso,
   onUpdateSeries,
   onUpdateRep,
   onUpdatePeso,
+  onUpdateNota,
+  onToggleRpe,
   onOpenExPicker,
   onMoveExercise,
   onAddCircuit,
@@ -383,6 +465,9 @@ function DayCard({
   onRemoveCircuitEx,
   onUpdateCircuitExRep,
   onUpdateCircuitExPeso,
+  onUpdateCircuitExNota,
+  onToggleCircuitExRpe,
+  onToggleCircuitRpe,
 }: {
   day: RoutineDay;
   dayIdx: number;
@@ -390,12 +475,15 @@ function DayCard({
   onToggleEdit: () => void;
   canRemove: boolean;
   onRemove: () => void;
+  onDuplicate: () => void;
   onUpdateField: (f: "dia" | "enfoque", v: string) => void;
   onRemoveExercise: (exIdx: number) => void;
   onUpdateDescanso: (exIdx: number, v: string) => void;
   onUpdateSeries: (exIdx: number, v: number) => void;
   onUpdateRep: (exIdx: number, si: number, v: string) => void;
   onUpdatePeso: (exIdx: number, si: number, v: string) => void;
+  onUpdateNota: (exIdx: number, v: string) => void;
+  onToggleRpe: (exIdx: number) => void;
   onOpenExPicker: () => void;
   onMoveExercise: (exIdx: number, dir: "up" | "down") => void;
   onAddCircuit: () => void;
@@ -406,6 +494,9 @@ function DayCard({
   onRemoveCircuitEx: (circIdx: number, exIdx: number) => void;
   onUpdateCircuitExRep: (circIdx: number, exIdx: number, ri: number, v: string) => void;
   onUpdateCircuitExPeso: (circIdx: number, exIdx: number, ri: number, v: string) => void;
+  onUpdateCircuitExNota: (circIdx: number, exIdx: number, v: string) => void;
+  onToggleCircuitExRpe: (circIdx: number, exIdx: number) => void;
+  onToggleCircuitRpe: (circIdx: number) => void;
 }) {
   const circuits = day.circuitos ?? [];
 
@@ -437,14 +528,23 @@ function DayCard({
               ` · ${circuits.length} circuito${circuits.length !== 1 ? "s" : ""}`}
           </div>
         </button>
-        {canRemove && (
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
           <button
-            onClick={onRemove}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 18, padding: "0 0 0 12px" }}
+            onClick={onDuplicate}
+            title="Duplicar día"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: "0 6px", fontSize: 14, lineHeight: 1 }}
           >
-            ×
+            ⧉
           </button>
-        )}
+          {canRemove && (
+            <button
+              onClick={onRemove}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 18, padding: "0 0 0 6px" }}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Expanded content */}
@@ -474,6 +574,8 @@ function DayCard({
               onUpdateSeries={(v) => onUpdateSeries(exIdx, v)}
               onUpdateRep={(si, v) => onUpdateRep(exIdx, si, v)}
               onUpdatePeso={(si, v) => onUpdatePeso(exIdx, si, v)}
+              onUpdateNota={(v) => onUpdateNota(exIdx, v)}
+              onToggleRpe={() => onToggleRpe(exIdx)}
               onMove={(dir) => onMoveExercise(exIdx, dir)}
               canMoveUp={exIdx > 0}
               canMoveDown={exIdx < day.ejercicios.length - 1}
@@ -503,11 +605,14 @@ function DayCard({
               circ={circ}
               onUpdate={(f, v) => onUpdateCircuit(circIdx, f, v)}
               onRemove={() => onRemoveCircuit(circIdx)}
+              onToggleRpe={() => onToggleCircuitRpe(circIdx)}
               onOpenExPicker={() => onOpenCircuitExPicker(circIdx)}
               onMoveEx={(exIdx, dir) => onMoveCircuitEx(circIdx, exIdx, dir)}
               onRemoveEx={(exIdx) => onRemoveCircuitEx(circIdx, exIdx)}
               onUpdateExRep={(exIdx, ri, v) => onUpdateCircuitExRep(circIdx, exIdx, ri, v)}
               onUpdateExPeso={(exIdx, ri, v) => onUpdateCircuitExPeso(circIdx, exIdx, ri, v)}
+              onUpdateExNota={(exIdx, v) => onUpdateCircuitExNota(circIdx, exIdx, v)}
+              onToggleExRpe={(exIdx) => onToggleCircuitExRpe(circIdx, exIdx)}
             />
           ))}
 
@@ -535,7 +640,7 @@ function DayCard({
 
 // ─── Main Modal ───────────────────────────────────────────────────────────
 
-type Props = ReturnType<typeof useRoutineCreator>;
+type Props = ReturnType<typeof useRoutineCreator> & { clubId: string };
 
 export default function RoutineCreatorModal({
   createVisible,
@@ -546,7 +651,7 @@ export default function RoutineCreatorModal({
   newRoutineType,
   changeRoutineType,
   rpePrompt,
-  setRpePrompt,
+  changeRpePrompt,
   newDays,
   editingDayIdx,
   setEditingDayIdx,
@@ -561,10 +666,13 @@ export default function RoutineCreatorModal({
   addDay,
   updateDay,
   removeDay,
+  duplicateDay,
   updateExercise,
   updateExerciseSeries,
   updateExerciseRep,
   updateExercisePeso,
+  updateExerciseNota,
+  toggleExerciseRpe,
   removeExercise,
   openExPickerForDay,
   pickExercises,
@@ -573,12 +681,16 @@ export default function RoutineCreatorModal({
   removeCircuit,
   updateCircuitExRep,
   updateCircuitExPeso,
+  updateCircuitExNota,
+  toggleCircuitRpe,
+  toggleCircuitExRpe,
   removeCircuitEx,
   moveExercise,
   moveCircuitEx,
   openCircuitExPicker,
   pickCircuitExercises,
   saveRoutine,
+  clubId,
 }: Props) {
   const isEditing = !!editingRoutineId;
   const canSave =
@@ -707,7 +819,7 @@ export default function RoutineCreatorModal({
               return (
                 <button
                   key={value}
-                  onClick={() => setRpePrompt(value)}
+                  onClick={() => changeRpePrompt(value)}
                   style={{
                     flex: 1,
                     padding: "10px 8px",
@@ -751,12 +863,15 @@ export default function RoutineCreatorModal({
               onToggleEdit={() => setEditingDayIdx(editingDayIdx === dayIdx ? null : dayIdx)}
               canRemove={newRoutineType !== "daily"}
               onRemove={() => removeDay(dayIdx)}
+              onDuplicate={() => duplicateDay(dayIdx)}
               onUpdateField={(f, v) => updateDay(dayIdx, f, v)}
               onRemoveExercise={(exIdx) => removeExercise(dayIdx, exIdx)}
               onUpdateDescanso={(exIdx, v) => updateExercise(dayIdx, exIdx, "descanso", v)}
               onUpdateSeries={(exIdx, v) => updateExerciseSeries(dayIdx, exIdx, v)}
               onUpdateRep={(exIdx, si, v) => updateExerciseRep(dayIdx, exIdx, si, v)}
               onUpdatePeso={(exIdx, si, v) => updateExercisePeso(dayIdx, exIdx, si, v)}
+              onUpdateNota={(exIdx, v) => updateExerciseNota(dayIdx, exIdx, v)}
+              onToggleRpe={(exIdx) => toggleExerciseRpe(dayIdx, exIdx)}
               onOpenExPicker={() => openExPickerForDay(dayIdx)}
               onMoveExercise={(exIdx, dir) => moveExercise(dayIdx, exIdx, dir)}
               onAddCircuit={() => addCircuit(dayIdx)}
@@ -771,6 +886,13 @@ export default function RoutineCreatorModal({
               onUpdateCircuitExPeso={(circIdx, exIdx, ri, v) =>
                 updateCircuitExPeso(dayIdx, circIdx, exIdx, ri, v)
               }
+              onUpdateCircuitExNota={(circIdx, exIdx, v) =>
+                updateCircuitExNota(dayIdx, circIdx, exIdx, v)
+              }
+              onToggleCircuitExRpe={(circIdx, exIdx) =>
+                toggleCircuitExRpe(dayIdx, circIdx, exIdx)
+              }
+              onToggleCircuitRpe={(circIdx) => toggleCircuitRpe(dayIdx, circIdx)}
             />
           ))}
 
@@ -844,6 +966,7 @@ export default function RoutineCreatorModal({
         library={library}
         loading={loadingLibrary}
         title="Elegir ejercicios"
+        clubId={clubId}
       />
 
       <ExercisePicker
@@ -853,6 +976,7 @@ export default function RoutineCreatorModal({
         library={library}
         loading={loadingLibrary}
         title="Elegir ejercicios para circuito"
+        clubId={clubId}
       />
     </div>
   );

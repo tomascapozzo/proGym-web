@@ -70,6 +70,17 @@ export async function shareRoutine(
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
+  // Prevent duplicate shares for the same routine+group
+  const { data: existing } = await ctx.supabase
+    .from("routine_shares")
+    .select("id")
+    .eq("routine_id", routineId)
+    .eq("target_type", "group")
+    .eq("target_group_id", groupId)
+    .maybeSingle();
+
+  if (existing) return { ok: true }; // already shared, nothing to do
+
   const { data: share, error: shareError } = await ctx.supabase
     .from("routine_shares")
     .insert({
@@ -116,13 +127,39 @@ export async function unshareRoutine(
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
-  // Archive enrollments created from this share before deleting it
-  // (preserves session history; source_share_id will become null via ON DELETE SET NULL)
-  await ctx.supabase
-    .from("routine_enrollments")
-    .update({ status: "past" })
-    .eq("source_share_id", shareId)
-    .eq("status", "active");
+  // Fetch the share to get target group + routine
+  const { data: share } = await ctx.supabase
+    .from("routine_shares")
+    .select("routine_id, target_group_id")
+    .eq("id", shareId)
+    .single();
+
+  if (share?.target_group_id) {
+    // Get all players in the group so we can archive any enrollment for this routine,
+    // regardless of source_share_id (handles orphaned null-source enrollments too)
+    const { data: groupMembers } = await ctx.supabase
+      .from("club_group_members")
+      .select("user_id")
+      .eq("group_id", share.target_group_id);
+
+    const playerIds = (groupMembers ?? []).map((m) => m.user_id);
+
+    if (playerIds.length > 0) {
+      await ctx.supabase
+        .from("routine_enrollments")
+        .update({ status: "past" })
+        .eq("routine_id", share.routine_id)
+        .in("user_id", playerIds)
+        .eq("status", "active");
+    }
+  } else {
+    // Fallback: archive by source_share_id only
+    await ctx.supabase
+      .from("routine_enrollments")
+      .update({ status: "past" })
+      .eq("source_share_id", shareId)
+      .eq("status", "active");
+  }
 
   const { error } = await ctx.supabase
     .from("routine_shares")

@@ -178,6 +178,37 @@ export default async function TeamMemberPage({
 
   const logs = logsRaw ?? [];
 
+  // 1RM answers from form responses
+  const { data: oneRmRaw } = await supabase
+    .from("club_form_answers")
+    .select(`
+      answer_number,
+      question:club_form_questions(options, type),
+      response:club_form_responses(submitted_at)
+    `)
+    .eq("club_form_responses.user_id", member.user_id)
+    .not("answer_number", "is", null);
+
+  type OneRmRow = {
+    answer_number: number;
+    question: { options: { exercise_name?: string } | null; type: string } | null;
+    response: { submitted_at: string } | null;
+  };
+
+  // Keep only one_rm type questions, one entry per exercise (most recent)
+  const oneRmMap = new Map<string, { weight: number; submitted_at: string }>();
+  for (const row of ((oneRmRaw ?? []) as unknown as OneRmRow[])) {
+    if (row.question?.type !== "one_rm") continue;
+    const exName = row.question.options?.exercise_name;
+    if (!exName || row.answer_number == null) continue;
+    const existing = oneRmMap.get(exName);
+    const submittedAt = row.response?.submitted_at ?? "";
+    if (!existing || submittedAt > existing.submitted_at) {
+      oneRmMap.set(exName, { weight: row.answer_number, submitted_at: submittedAt });
+    }
+  }
+  const oneRmEntries = Array.from(oneRmMap.entries()).map(([exercise, data]) => ({ exercise, ...data }));
+
   const weekStart = getMonday();
   const sessionsThisWeek = logs.filter(l => new Date(l.created_at) >= weekStart).length;
   const logsWithDuration = logs.filter(l => l.duration_seconds);
@@ -254,6 +285,30 @@ export default async function TeamMemberPage({
             </div>
           )}
         </div>
+
+        {/* 1RM */}
+        {oneRmEntries.length > 0 && (
+          <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--pg-border)" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pg-text)" }}>1RM</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 1, background: "var(--pg-border)" }}>
+              {oneRmEntries.map(({ exercise, weight, submitted_at }) => (
+                <div key={exercise} style={{ background: "var(--pg-card)", padding: "12px 14px" }}>
+                  <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "1px", color: "var(--pg-muted)", marginBottom: 4 }}>
+                    {exercise}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "var(--pg-accent)", fontVariantNumeric: "tabular-nums" }}>
+                    {weight}<span style={{ fontSize: 12, fontWeight: 500, color: "var(--pg-muted)", marginLeft: 2 }}>kg</span>
+                  </div>
+                  <div style={{ fontSize: 9, color: "var(--pg-disabled)", marginTop: 4 }}>
+                    {new Date(submitted_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Session history */}
         <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>

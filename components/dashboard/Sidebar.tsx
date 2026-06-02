@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Shield, Link2, CalendarDays, ClipboardList, BarChart2, Settings, LogOut, Video, Layers } from "lucide-react";
+import { LayoutDashboard, Users, Shield, Link2, CalendarDays, ClipboardList, BarChart2, Settings, LogOut, Video, Layers, FileText } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 
 const NAV = [
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/invitations",     label: "Invitaciones",      icon: Link2           },
   { href: "/calendar",        label: "Calendario",        icon: CalendarDays    },
   { href: "/routines",        label: "Rutinas",           icon: ClipboardList   },
+  { href: "/forms",           label: "Formularios",       icon: FileText        },
   { href: "/analytics",       label: "Analítica",         icon: BarChart2       },
   { href: "/video-analysis",  label: "Análisis de video", icon: Video           },
   { href: "/settings",        label: "Configuración",     icon: Settings        },

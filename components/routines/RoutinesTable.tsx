@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Plus } from "lucide-react";
+import { Copy, Pencil, Plus } from "lucide-react";
 import { useRoutineCreator } from "@/hooks/useRoutineCreator";
 import RoutineCreatorModal from "./RoutineCreatorModal";
 
@@ -35,11 +35,11 @@ const TABS: { key: Filter; label: string }[] = [
 const COL = "1fr 90px 46px 72px 1fr 90px 32px";
 const HEADERS = ["Nombre", "Tipo", "Días", "Ejercicios", "Creador", "Estado", ""];
 
-export default function RoutinesTable({ routines }: { routines: RoutineRow[] }) {
+export default function RoutinesTable({ routines, clubId }: { routines: RoutineRow[]; clubId: string }) {
   const [filter, setFilter] = useState<Filter>("all");
   const router = useRouter();
   const creator = useRoutineCreator(() => router.refresh());
-  const { openEditRoutine } = creator;
+  const { openEditRoutine, duplicateRoutine } = creator;
 
   const filtered = filter === "all"
     ? routines
@@ -120,13 +120,22 @@ export default function RoutinesTable({ routines }: { routines: RoutineRow[] }) 
               <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: STATUS_BG[r.status], color: STATUS_COLOR[r.status], display: "inline-block", width: "fit-content" }}>
                 {STATUS_LABELS[r.status]}
               </span>
-              <button
-                onClick={() => openEditRoutine(r.id)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}
-                title="Editar rutina"
-              >
-                <Pencil size={13} />
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <button
+                  onClick={() => duplicateRoutine(r.id)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}
+                  title="Duplicar rutina"
+                >
+                  <Copy size={13} />
+                </button>
+                <button
+                  onClick={() => openEditRoutine(r.id)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}
+                  title="Editar rutina"
+                >
+                  <Pencil size={13} />
+                </button>
+              </div>
             </div>
           ))}
 
@@ -138,7 +147,7 @@ export default function RoutinesTable({ routines }: { routines: RoutineRow[] }) 
         </div>
       </div>
     </div>
-    <RoutineCreatorModal {...creator} />
+    <RoutineCreatorModal {...creator} clubId={clubId} />
     </>
   );
 }

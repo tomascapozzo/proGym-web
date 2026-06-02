@@ -62,6 +62,17 @@ export function useRoutineCreator(onSaved: () => void) {
     setCreateVisible(true);
   };
 
+  const changeRpePrompt = (value: RpePromptType) => {
+    setRpePrompt(value);
+    setNewDays((prev) =>
+      prev.map((day) => ({
+        ...day,
+        ejercicios: day.ejercicios.map((ex) => ({ ...ex, rpe: value === "serie" })),
+        circuitos: day.circuitos?.map((circ) => ({ ...circ, rpe: value === "bloque" })),
+      })),
+    );
+  };
+
   const changeRoutineType = (type: RoutineType) => {
     setNewRoutineType(type);
     if (type === "daily") {
@@ -120,6 +131,25 @@ export function useRoutineCreator(onSaved: () => void) {
     if (editingDayIdx === dayIdx) setEditingDayIdx(null);
     else if (editingDayIdx !== null && editingDayIdx > dayIdx)
       setEditingDayIdx(editingDayIdx - 1);
+  };
+
+  const duplicateDay = (dayIdx: number) => {
+    setNewDays((prev) => {
+      const source = prev[dayIdx];
+      const copy: RoutineDay = {
+        ...source,
+        dia: `${source.dia} (copia)`,
+        ejercicios: source.ejercicios.map((ex) => ({ ...ex, reps: [...ex.reps], peso: ex.peso ? [...ex.peso] : undefined })),
+        circuitos: source.circuitos?.map((c) => ({
+          ...c,
+          ejercicios: c.ejercicios.map((ex) => ({ ...ex, reps: [...ex.reps], peso: ex.peso ? [...ex.peso] : undefined })),
+        })),
+      };
+      const updated = [...prev];
+      updated.splice(dayIdx + 1, 0, copy);
+      return updated;
+    });
+    setEditingDayIdx(dayIdx + 1);
   };
 
   const addExerciseToDay = (dayIdx: number, name: string) => {
@@ -194,6 +224,26 @@ export function useRoutineCreator(onSaved: () => void) {
     });
   };
 
+  const updateExerciseNota = (dayIdx: number, exIdx: number, value: string) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const ejercicios = [...updated[dayIdx].ejercicios];
+      ejercicios[exIdx] = { ...ejercicios[exIdx], nota: value };
+      updated[dayIdx] = { ...updated[dayIdx], ejercicios };
+      return updated;
+    });
+  };
+
+  const toggleExerciseRpe = (dayIdx: number, exIdx: number) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const ejercicios = [...updated[dayIdx].ejercicios];
+      ejercicios[exIdx] = { ...ejercicios[exIdx], rpe: !ejercicios[exIdx].rpe };
+      updated[dayIdx] = { ...updated[dayIdx], ejercicios };
+      return updated;
+    });
+  };
+
   const removeExercise = (dayIdx: number, exIdx: number) => {
     setNewDays((prev) => {
       const updated = [...prev];
@@ -220,6 +270,26 @@ export function useRoutineCreator(onSaved: () => void) {
   const pickExercises = (exercises: LibraryExercise[]) => {
     exercises.forEach((ex) => addExerciseToDay(exPickerDayIdx, ex.name));
     setExPickerVisible(false);
+  };
+
+  const duplicateRoutine = async (id: string) => {
+    const supabase = createClient();
+    const [, { data: routine }] = await Promise.all([
+      ensureLibrary(),
+      supabase.from("routines").select("id, data, type").eq("id", id).single(),
+    ]);
+    if (!routine) return;
+    const parsed = typeof routine.data === "string"
+      ? JSON.parse(routine.data) as { nombre: string; dias: RoutineDay[]; rpe_prompt?: RpePromptType }
+      : (routine.data as { nombre: string; dias: RoutineDay[]; rpe_prompt?: RpePromptType });
+    setEditingRoutineId(null); // open as new — not editing
+    setNewRoutineName(`Copia de ${parsed.nombre ?? ""}`);
+    setNewRoutineType((routine.type as RoutineType) ?? "weekly");
+    setRpePrompt(parsed.rpe_prompt ?? "sesion");
+    setNewDays(parsed.dias ?? []);
+    setEditingDayIdx(null);
+    setSaveError(null);
+    setCreateVisible(true);
   };
 
   // ─── Circuit creation ─────────────────────────────────────────────────────
@@ -329,6 +399,40 @@ export function useRoutineCreator(onSaved: () => void) {
       const base = ex.peso ?? Array.from({ length: circuitos[circIdx].rondas }, () => "");
       const peso = base.map((p, i) => i >= seriesIdx ? value : p);
       ejercicios[exIdx] = { ...ex, peso };
+      circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
+      updated[dayIdx] = { ...updated[dayIdx], circuitos };
+      return updated;
+    });
+  };
+
+  const toggleCircuitRpe = (dayIdx: number, circIdx: number) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const circuitos = [...(updated[dayIdx].circuitos ?? [])];
+      circuitos[circIdx] = { ...circuitos[circIdx], rpe: !circuitos[circIdx].rpe };
+      updated[dayIdx] = { ...updated[dayIdx], circuitos };
+      return updated;
+    });
+  };
+
+  const updateCircuitExNota = (dayIdx: number, circIdx: number, exIdx: number, value: string) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const circuitos = [...(updated[dayIdx].circuitos ?? [])];
+      const ejercicios = [...circuitos[circIdx].ejercicios];
+      ejercicios[exIdx] = { ...ejercicios[exIdx], nota: value };
+      circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
+      updated[dayIdx] = { ...updated[dayIdx], circuitos };
+      return updated;
+    });
+  };
+
+  const toggleCircuitExRpe = (dayIdx: number, circIdx: number, exIdx: number) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const circuitos = [...(updated[dayIdx].circuitos ?? [])];
+      const ejercicios = [...circuitos[circIdx].ejercicios];
+      ejercicios[exIdx] = { ...ejercicios[exIdx], rpe: !ejercicios[exIdx].rpe };
       circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
       updated[dayIdx] = { ...updated[dayIdx], circuitos };
       return updated;
@@ -465,6 +569,7 @@ export function useRoutineCreator(onSaved: () => void) {
     newRoutineType,
     rpePrompt,
     setRpePrompt,
+    changeRpePrompt,
     newDays,
     editingDayIdx,
     setEditingDayIdx,
@@ -480,10 +585,14 @@ export function useRoutineCreator(onSaved: () => void) {
     addDay,
     updateDay,
     removeDay,
+    duplicateDay,
+    duplicateRoutine,
     updateExercise,
     updateExerciseSeries,
     updateExerciseRep,
     updateExercisePeso,
+    updateExerciseNota,
+    toggleExerciseRpe,
     removeExercise,
     openExPickerForDay,
     pickExercise,
@@ -491,8 +600,11 @@ export function useRoutineCreator(onSaved: () => void) {
     addCircuit,
     updateCircuit,
     removeCircuit,
+    toggleCircuitRpe,
     updateCircuitExRep,
     updateCircuitExPeso,
+    updateCircuitExNota,
+    toggleCircuitExRpe,
     removeCircuitEx,
     moveExercise,
     moveCircuitEx,
