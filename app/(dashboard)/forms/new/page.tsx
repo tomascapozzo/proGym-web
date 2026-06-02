@@ -11,7 +11,7 @@ export default async function NewFormPage() {
   return (
     <>
       <Topbar title="Nuevo formulario" subtitle="Completá los datos y agregá preguntas" />
-      <FormBuilderClient clubId={club.id} form={null} questions={[]} groups={[]} players={[]} distributions={[]} />
+      <FormBuilderClient clubId={club.id} form={null} questions={[]} groups={[]} players={[]} distributions={[]} schedules={[]} />
     </>
   );
 }

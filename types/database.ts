@@ -339,6 +339,186 @@ export type Database = {
         };
         Relationships: [];
       };
+      club_forms: {
+        Row: {
+          id: string;
+          club_id: string;
+          created_by: string;
+          title: string;
+          description: string | null;
+          status: "draft" | "active" | "archived";
+          template_type: "anamnesis" | "wellness" | null;
+          created_at: string;
+        };
+        Insert: {
+          club_id: string;
+          created_by: string;
+          title: string;
+          description?: string | null;
+          status?: "draft" | "active" | "archived";
+          template_type?: "anamnesis" | "wellness" | null;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+          status?: "draft" | "active" | "archived";
+          template_type?: "anamnesis" | "wellness" | null;
+        };
+        Relationships: [];
+      };
+      club_form_questions: {
+        Row: {
+          id: string;
+          form_id: string;
+          type: "text" | "scale" | "multiple_choice" | "yes_no" | "one_rm";
+          question_text: string;
+          options: Json | null;
+          order_index: number;
+          required: boolean;
+        };
+        Insert: {
+          form_id: string;
+          type: "text" | "scale" | "multiple_choice" | "yes_no" | "one_rm";
+          question_text: string;
+          options?: Json | null;
+          order_index: number;
+          required?: boolean;
+        };
+        Update: {
+          type?: "text" | "scale" | "multiple_choice" | "yes_no" | "one_rm";
+          question_text?: string;
+          options?: Json | null;
+          order_index?: number;
+          required?: boolean;
+        };
+        Relationships: [];
+      };
+      club_form_distributions: {
+        Row: {
+          id: string;
+          form_id: string;
+          target_type: "group" | "player";
+          target_id: string;
+          due_at: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          form_id: string;
+          target_type: "group" | "player";
+          target_id: string;
+          due_at?: string | null;
+          created_by: string;
+        };
+        Update: {
+          target_type?: "group" | "player";
+          target_id?: string;
+          due_at?: string | null;
+        };
+        Relationships: [];
+      };
+      club_form_schedules: {
+        Row: {
+          id: string;
+          form_id: string;
+          club_id: string;
+          target_type: "group" | "player";
+          target_id: string;
+          days_of_week: number[];
+          send_time: string;
+          active: boolean;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          form_id: string;
+          club_id: string;
+          target_type: "group" | "player";
+          target_id: string;
+          days_of_week: number[];
+          send_time?: string;
+          active?: boolean;
+          created_by: string;
+        };
+        Update: {
+          target_type?: "group" | "player";
+          target_id?: string;
+          days_of_week?: number[];
+          send_time?: string;
+          active?: boolean;
+        };
+        Relationships: [];
+      };
+      club_form_responses: {
+        Row: {
+          id: string;
+          distribution_id: string;
+          user_id: string;
+          submitted_at: string;
+        };
+        Insert: {
+          distribution_id: string;
+          user_id: string;
+          submitted_at?: string;
+        };
+        Update: {
+          submitted_at?: string;
+        };
+        Relationships: [];
+      };
+      club_form_answers: {
+        Row: {
+          id: string;
+          response_id: string;
+          question_id: string;
+          answer_text: string | null;
+          answer_number: number | null;
+          answer_options: Json | null;
+        };
+        Insert: {
+          response_id: string;
+          question_id: string;
+          answer_text?: string | null;
+          answer_number?: number | null;
+          answer_options?: Json | null;
+        };
+        Update: {
+          answer_text?: string | null;
+          answer_number?: number | null;
+          answer_options?: Json | null;
+        };
+        Relationships: [];
+      };
+      club_custom_exercises: {
+        Row: {
+          id: string;
+          club_id: string;
+          created_by: string;
+          name: string;
+          muscle_group: string;
+          movement_pattern: string;
+          equipment: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          club_id: string;
+          created_by?: string;
+          name: string;
+          muscle_group?: string;
+          movement_pattern?: string;
+          equipment?: string;
+          description?: string | null;
+        };
+        Update: {
+          name?: string;
+          muscle_group?: string;
+          movement_pattern?: string;
+          equipment?: string;
+          description?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
