@@ -9,6 +9,7 @@ import {
   type RoutineDay,
   type RoutineDayExercise,
   type RoutineType,
+  type RpePromptType,
 } from "@/types/routine";
 
 export function useRoutineCreator(onSaved: () => void) {
@@ -19,6 +20,7 @@ export function useRoutineCreator(onSaved: () => void) {
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [newRoutineName, setNewRoutineName] = useState("");
   const [newRoutineType, setNewRoutineType] = useState<RoutineType>("weekly");
+  const [rpePrompt, setRpePrompt] = useState<RpePromptType>("sesion");
   const [newDays, setNewDays] = useState<RoutineDay[]>([]);
   const [editingDayIdx, setEditingDayIdx] = useState<number | null>(null);
   const [savingRoutine, setSavingRoutine] = useState(false);
@@ -54,6 +56,7 @@ export function useRoutineCreator(onSaved: () => void) {
   const openCreateRoutine = () => {
     setNewRoutineName("");
     setNewRoutineType("weekly");
+    setRpePrompt("sesion");
     setNewDays([]);
     setEditingDayIdx(null);
     setCreateVisible(true);
@@ -73,6 +76,7 @@ export function useRoutineCreator(onSaved: () => void) {
   const closeCreateRoutine = () => {
     setCreateVisible(false);
     setEditingRoutineId(null);
+    setRpePrompt("sesion");
   };
 
   const openEditRoutine = async (id: string) => {
@@ -83,11 +87,12 @@ export function useRoutineCreator(onSaved: () => void) {
     ]);
     if (!routine) return;
     const parsed = typeof routine.data === "string"
-      ? JSON.parse(routine.data) as { nombre: string; dias: RoutineDay[] }
-      : (routine.data as { nombre: string; dias: RoutineDay[] });
+      ? JSON.parse(routine.data) as { nombre: string; dias: RoutineDay[]; rpe_prompt?: RpePromptType }
+      : (routine.data as { nombre: string; dias: RoutineDay[]; rpe_prompt?: RpePromptType });
     setEditingRoutineId(id);
     setNewRoutineName(parsed.nombre ?? "");
     setNewRoutineType((routine.type as RoutineType) ?? "weekly");
+    setRpePrompt(parsed.rpe_prompt ?? "sesion");
     setNewDays(parsed.dias ?? []);
     setEditingDayIdx(null);
     setSaveError(null);
@@ -410,7 +415,7 @@ export function useRoutineCreator(onSaved: () => void) {
     setSavingRoutine(true);
     setSaveError(null);
     const supabase = createClient();
-    const payload = { nombre: newRoutineName.trim(), dias: newDays };
+    const payload = { nombre: newRoutineName.trim(), dias: newDays, rpe_prompt: rpePrompt };
 
     let error;
     if (editingRoutineId) {
@@ -442,6 +447,7 @@ export function useRoutineCreator(onSaved: () => void) {
     setEditingRoutineId(null);
     setNewRoutineName("");
     setNewRoutineType("weekly");
+    setRpePrompt("sesion");
     setNewDays([]);
     setEditingDayIdx(null);
     setSaveError(null);
@@ -457,6 +463,8 @@ export function useRoutineCreator(onSaved: () => void) {
     newRoutineName,
     setNewRoutineName,
     newRoutineType,
+    rpePrompt,
+    setRpePrompt,
     newDays,
     editingDayIdx,
     setEditingDayIdx,

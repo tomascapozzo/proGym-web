@@ -5,18 +5,20 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+type Notice = { kind: "error" | "info"; text: string };
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName]         = useState("");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState<string | null>(null);
+  const [notice, setNotice]     = useState<Notice | null>(null);
   const [loading, setLoading]   = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     console.log("[signup] handleSubmit called");
-    setError(null);
+    setNotice(null);
     setLoading(true);
 
     try {
@@ -26,20 +28,31 @@ export default function SignupPage() {
       console.log("[signup] signUp result:", { user: data?.user?.id, session: !!data?.session, error: authError?.message });
 
       if (authError) {
-        setError(authError.message);
+        const msg = authError.message.toLowerCase();
+        if (msg.includes("user already registered") || msg.includes("already registered")) {
+          setNotice({ kind: "error", text: "Ya existe una cuenta con ese email. Iniciá sesión." });
+        } else if (msg.includes("password should be at least")) {
+          setNotice({ kind: "error", text: "La contraseña debe tener al menos 6 caracteres." });
+        } else if (msg.includes("unable to validate email") || msg.includes("invalid email")) {
+          setNotice({ kind: "error", text: "El email no tiene un formato válido." });
+        } else if (msg.includes("too many requests")) {
+          setNotice({ kind: "error", text: "Demasiados intentos. Esperá unos minutos e intentá de nuevo." });
+        } else {
+          setNotice({ kind: "error", text: "No se pudo crear la cuenta. Intentá de nuevo." });
+        }
         setLoading(false);
         return;
       }
 
       // Email confirmation is enabled — user exists but no session yet
       if (!data.session) {
-        setError("Revisá tu email para confirmar la cuenta antes de ingresar.");
+        setNotice({ kind: "info", text: "Revisá tu email para confirmar la cuenta antes de ingresar." });
         setLoading(false);
         return;
       }
 
       if (!data.user) {
-        setError("No se pudo crear la cuenta.");
+        setNotice({ kind: "error", text: "No se pudo crear la cuenta." });
         setLoading(false);
         return;
       }
@@ -56,7 +69,7 @@ export default function SignupPage() {
       console.log("[signup] profile upsert:", { error: profileError?.message });
 
       if (profileError) {
-        setError(`Cuenta creada, pero error al guardar el perfil: ${profileError.message}`);
+        setNotice({ kind: "error", text: "Cuenta creada, pero hubo un error al guardar el perfil. Intentá de nuevo." });
         setLoading(false);
         return;
       }
@@ -65,7 +78,7 @@ export default function SignupPage() {
       router.refresh();
     } catch (err) {
       console.error("[signup] unexpected error:", err);
-      setError("Error inesperado. Revisá la consola.");
+      setNotice({ kind: "error", text: "Error inesperado. Intentá de nuevo." });
       setLoading(false);
     }
   }
@@ -134,9 +147,16 @@ export default function SignupPage() {
               />
             </div>
 
-            {error && (
-              <div style={{ fontSize: "0.82rem", color: "var(--pg-red)", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8, padding: "0.6rem 0.875rem" }}>
-                {error}
+            {notice && (
+              <div style={{
+                fontSize: "0.82rem",
+                color: notice.kind === "error" ? "var(--pg-red)" : "var(--pg-blue)",
+                background: notice.kind === "error" ? "rgba(239,68,68,0.08)" : "var(--pg-blue-dim)",
+                border: `1px solid ${notice.kind === "error" ? "rgba(239,68,68,0.2)" : "rgba(74,144,217,0.25)"}`,
+                borderRadius: 8,
+                padding: "0.6rem 0.875rem",
+              }}>
+                {notice.text}
               </div>
             )}
 

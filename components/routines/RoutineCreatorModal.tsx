@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { useRoutineCreator } from "@/hooks/useRoutineCreator";
-import type { RoutineCircuit, RoutineDayExercise, RoutineDay } from "@/types/routine";
+import type { RoutineCircuit, RoutineDayExercise, RoutineDay, RpePromptType } from "@/types/routine";
 import ExercisePicker from "./ExercisePicker";
 import RepsPicker from "./RepsPicker";
 
@@ -12,6 +12,12 @@ const ROUTINE_TYPES: { value: "daily" | "weekly" | "monthly"; label: string }[] 
   { value: "daily", label: "Diaria" },
   { value: "weekly", label: "Semanal" },
   { value: "monthly", label: "Mensual" },
+];
+
+const RPE_OPTIONS: { value: RpePromptType; label: string; desc: string }[] = [
+  { value: "serie",  label: "Por serie",   desc: "Al finalizar cada serie" },
+  { value: "bloque", label: "Por bloque",  desc: "Al finalizar cada circuito o superset" },
+  { value: "sesion", label: "Por sesión",  desc: "Al finalizar el entrenamiento" },
 ];
 
 const inputStyle: React.CSSProperties = {
@@ -539,6 +545,8 @@ export default function RoutineCreatorModal({
   setNewRoutineName,
   newRoutineType,
   changeRoutineType,
+  rpePrompt,
+  setRpePrompt,
   newDays,
   editingDayIdx,
   setEditingDayIdx,
@@ -684,6 +692,38 @@ export default function RoutineCreatorModal({
                   }}
                 >
                   {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* RPE prompt */}
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "var(--pg-muted)", marginBottom: 8 }}>
+            REGISTRO DE ESFUERZO (RPE)
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+            {RPE_OPTIONS.map(({ value, label, desc }) => {
+              const active = rpePrompt === value;
+              return (
+                <button
+                  key={value}
+                  onClick={() => setRpePrompt(value)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 8px",
+                    borderRadius: 10,
+                    border: `1.5px solid ${active ? "var(--pg-blue)" : "var(--pg-border)"}`,
+                    background: active ? "var(--pg-blue-dim)" : "var(--pg-card)",
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: active ? 700 : 400, color: active ? "var(--pg-blue)" : "var(--pg-muted)", marginBottom: 3 }}>
+                    {label}
+                  </div>
+                  <div style={{ fontSize: 10, color: active ? "var(--pg-blue)" : "var(--pg-disabled)", lineHeight: 1.3 }}>
+                    {desc}
+                  </div>
                 </button>
               );
             })}

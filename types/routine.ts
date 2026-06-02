@@ -33,6 +33,7 @@ export type RoutineDay = {
 
 export type RoutineType = "daily" | "weekly" | "monthly";
 export type RoutineStatus = "active" | "past" | "pending_restart";
+export type RpePromptType = "serie" | "bloque" | "sesion";
 
 export type RoutineProgress = {
   completed_days: number[];
@@ -44,7 +45,7 @@ export type Routine = {
   type: RoutineType;
   status: RoutineStatus;
   progress: RoutineProgress;
-  data: { nombre: string; dias: RoutineDay[] };
+  data: { nombre: string; dias: RoutineDay[]; rpe_prompt?: RpePromptType };
   created_at: string;
 };
 

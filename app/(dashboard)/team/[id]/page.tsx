@@ -1,11 +1,79 @@
-import { redirect } from "next/navigation";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import Topbar from "@/components/dashboard/Topbar";
 import { getCurrentMembership } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import Topbar from "@/components/dashboard/Topbar";
 import type { ClubRole } from "@/types/club";
-import type { Routine } from "@/types/routine";
+
+// Defensive exercise JSON types — the mobile app owns this shape
+type ExSet = {
+  reps?: number;
+  weight?: number;
+  weight_kg?: number;
+  duration_seconds?: number;
+  completed?: boolean;
+};
+type ExEntry = {
+  name?: string;
+  exercise_name?: string;
+  sets?: ExSet[];
+  completed_sets?: ExSet[];
+};
+
+function parseExercises(raw: unknown): ExEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw as ExEntry[];
+}
+
+function formatSet(s: ExSet): string | null {
+  const weight = s.weight ?? s.weight_kg;
+  if (s.reps && weight) return `${s.reps}×${weight}kg`;
+  if (s.reps) return `${s.reps} reps`;
+  if (s.duration_seconds) return `${Math.round(s.duration_seconds / 60)}min`;
+  return null;
+}
+
+function calcExerciseVolume(sets: ExSet[]): number {
+  return sets.reduce((acc, s) => {
+    const w = s.weight ?? s.weight_kg ?? 0;
+    return acc + (s.reps ?? 0) * w;
+  }, 0);
+}
+
+function calcSessionVolume(exercises: ExEntry[]): number {
+  return exercises.reduce((acc, ex) => {
+    const sets = ex.sets ?? ex.completed_sets ?? [];
+    return acc + calcExerciseVolume(sets);
+  }, 0);
+}
+
+function SetChip({ s }: { s: ExSet }) {
+  const weight = s.weight ?? s.weight_kg;
+  const completed = s.completed !== false; // treat undefined as completed
+  let label = "";
+  if (s.reps && weight) label = `${s.reps}×${weight}kg`;
+  else if (s.reps) label = `${s.reps}`;
+  else if (s.duration_seconds) label = `${Math.round(s.duration_seconds / 60)}′`;
+  else label = "—";
+
+  return (
+    <span style={{
+      display: "inline-block",
+      fontSize: 10,
+      fontWeight: 600,
+      padding: "2px 7px",
+      borderRadius: 4,
+      background: completed ? "rgba(212,168,83,0.12)" : "rgba(255,255,255,0.05)",
+      color: completed ? "var(--pg-accent)" : "var(--pg-disabled)",
+      fontVariantNumeric: "tabular-nums",
+      letterSpacing: "0.2px",
+      border: completed ? "1px solid rgba(212,168,83,0.25)" : "1px solid rgba(255,255,255,0.07)",
+      textDecoration: completed ? "none" : "line-through",
+    }}>
+      {label}
+    </span>
+  );
+}
 
 const ROLE_LABEL: Record<ClubRole, string> = { admin: "Admin", coach: "Coach", player: "Jugador" };
 const ROLE_COLOR: Record<ClubRole, { bg: string; fg: string }> = {
@@ -14,268 +82,285 @@ const ROLE_COLOR: Record<ClubRole, { bg: string; fg: string }> = {
   player: { bg: "var(--pg-accent-bg)", fg: "var(--pg-accent)" },
 };
 
-const NIVEL_LABELS: Record<string, string> = {
-  principiante: "Principiante",
-  intermedio:   "Intermedio",
-  avanzado:     "Avanzado",
-};
-
-const TYPE_LABELS: Record<string, string> = { daily: "Diaria", weekly: "Semanal", monthly: "Mensual" };
-const TYPE_COLOR: Record<string, string>  = { daily: "var(--pg-blue)", weekly: "var(--pg-accent)", monthly: "var(--pg-purple)" };
-const TYPE_BG: Record<string, string>     = { daily: "rgba(14,165,233,0.12)", weekly: "rgba(212,168,83,0.12)", monthly: "rgba(167,139,250,0.12)" };
-
 function initials(name: string) {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
 }
 
+function formatDuration(s: number) {
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-AR", {
+    weekday: "short", day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatRelative(iso: string) {
-  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === 1) return "Ayer";
-  if (diffDays < 7) return `Hace ${diffDays}d`;
-  return formatDate(iso);
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days === 0) return "Hoy";
+  if (days === 1) return "Ayer";
+  if (days < 7) return `Hace ${days} días`;
+  if (days < 30) return `Hace ${Math.floor(days / 7)} semanas`;
+  return `Hace ${Math.floor(days / 30)} meses`;
 }
 
-function formatDuration(s: number | null) {
-  if (!s) return null;
-  const m = Math.round(s / 60);
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`;
+function getMonday() {
+  const d = new Date();
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-type Props = { params: Promise<{ id: string }> };
-
-export default async function PlayerDetailPage({ params }: Props) {
+export default async function TeamMemberPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
+
   const { user, membership, club } = await getCurrentMembership();
   if (!user) redirect("/auth/login");
   if (!membership || !club) redirect("/club/new");
 
   const supabase = await createClient();
 
-  // club_member record — verify it belongs to our club
-  const { data: member } = await supabase
+  // Member must belong to the same club
+  const { data: memberRaw } = await supabase
     .from("club_members")
-    .select("id, user_id, role, status, joined_at")
+    .select("id, user_id, role, status, joined_at, profile:profiles(name, username)")
     .eq("id", id)
     .eq("club_id", club.id)
     .single();
 
-  if (!member) notFound();
+  if (!memberRaw) notFound();
 
-  type MemberRow = { id: string; user_id: string; role: ClubRole; status: string; joined_at: string };
-  const m = member as unknown as MemberRow;
+  const member = memberRaw as unknown as {
+    id: string;
+    user_id: string;
+    role: ClubRole;
+    status: string;
+    joined_at: string;
+    profile: { name: string; username: string } | null;
+  };
 
-  // Profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, username, edad, nivel, objetivo, equipamiento, lesiones, pr_exercises")
-    .eq("id", m.user_id)
-    .single();
+  const name = member.profile?.name?.trim() || "Sin nombre";
 
-  // Recent sessions (requires coaches_read_member_logs policy)
-  const { data: sessionsRaw } = await supabase
+  // Groups this member belongs to (within this club only)
+  const { data: gmRaw } = await supabase
+    .from("club_group_members")
+    .select("group:club_groups(id, name, club_id)")
+    .eq("user_id", member.user_id);
+
+  const groups = ((gmRaw ?? []) as unknown as { group: { id: string; name: string; club_id: string } | null }[])
+    .map(g => g.group)
+    .filter(g => g && g.club_id === club.id) as { id: string; name: string }[];
+
+  // Total session count (accurate, no data fetched)
+  const { count: totalCount } = await supabase
     .from("workout_logs")
-    .select("id, created_at, duration_seconds, routine_id, routine_day_name, exercises, notes")
-    .eq("user_id", m.user_id)
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", member.user_id);
+
+  // Last 50 sessions for the history list
+  const { data: logsRaw } = await supabase
+    .from("workout_logs")
+    .select("id, created_at, duration_seconds, routine_day_name, notes, exercises")
+    .eq("user_id", member.user_id)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
 
-  const sessions = (sessionsRaw ?? []).map(s => ({
-    id:          s.id,
-    date:        formatDate(s.created_at),
-    relDate:     formatRelative(s.created_at),
-    dayName:     s.routine_day_name ?? null,
-    duration:    formatDuration(s.duration_seconds),
-    exercises:   Array.isArray(s.exercises) ? (s.exercises as unknown[]).length : 0,
-    notes:       s.notes ?? null,
-    hasRoutine:  !!s.routine_id,
-  }));
+  const logs = logsRaw ?? [];
 
-  // Active routines (requires coaches_read_member_routines policy)
-  const { data: routinesRaw } = await supabase
-    .from("routines")
-    .select("id, data, type, status, progress")
-    .eq("user_id", m.user_id)
-    .in("status", ["active", "pending_restart"])
-    .order("created_at", { ascending: false });
-
-  type DBRoutine = { id: string; data: unknown; type: string; status: string; progress: unknown };
-  const activeRoutines = (routinesRaw ?? []).map((r: DBRoutine) => {
-    const data = r.data as Routine["data"];
-    const progress = r.progress as Routine["progress"];
-    return {
-      id:            r.id,
-      name:          data.nombre,
-      type:          r.type as Routine["type"],
-      status:        r.status as Routine["status"],
-      daysCount:     data.dias?.length ?? 0,
-      completedDays: progress?.completed_days ?? [],
-    };
-  });
-
-  const name = profile?.name?.trim() || "Sin nombre";
-  const roleColor = ROLE_COLOR[m.role];
-
-  const SESSION_COL = "90px 1fr 60px 70px";
+  const weekStart = getMonday();
+  const sessionsThisWeek = logs.filter(l => new Date(l.created_at) >= weekStart).length;
+  const logsWithDuration = logs.filter(l => l.duration_seconds);
+  const avgDuration = logsWithDuration.length > 0
+    ? logsWithDuration.reduce((acc, l) => acc + (l.duration_seconds ?? 0), 0) / logsWithDuration.length
+    : 0;
 
   return (
     <>
       <Topbar
         title={name}
-        back={{ href: "/team", label: "Equipo" }}
+        subtitle="Perfil del jugador"
         actions={
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: roleColor.bg, color: roleColor.fg, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              {ROLE_LABEL[m.role]}
-            </span>
-            <span style={{ fontSize: 9, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: m.status === "suspended" ? "var(--pg-amber-bg)" : "rgba(74,222,128,0.12)", color: m.status === "suspended" ? "var(--pg-amber)" : "var(--pg-green)" }}>
-              {m.status === "suspended" ? "Suspendido" : "Activo"}
-            </span>
-          </div>
+          <Link
+            href="/team"
+            style={{ fontSize: 11, color: "var(--pg-muted)", textDecoration: "none" }}
+          >
+            ← Volver al equipo
+          </Link>
         }
       />
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 280px", gap: 12, alignItems: "start" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
 
-          {/* Left: sessions */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Player header card */}
+        <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, padding: 16 }}>
 
-            {/* Quick stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
-              {[
-                { label: "Sesiones totales", value: sessions.length.toString(), color: "var(--pg-text)" },
-                { label: "Última sesión",    value: sessions[0] ? sessions[0].relDate : "—", color: "var(--pg-text)" },
-                { label: "Se unió",          value: formatDate(m.joined_at), color: "var(--pg-muted)" },
-              ].map(s => (
-                <div key={s.label} style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, padding: "10px 14px" }}>
-                  <div style={{ fontSize: 9, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--pg-muted)", marginBottom: 4, fontWeight: 500 }}>{s.label}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
-                </div>
-              ))}
+          {/* Identity row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--pg-surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "var(--pg-muted)", flexShrink: 0 }}>
+              {initials(name)}
             </div>
-
-            {/* Sessions table */}
-            <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
-              <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--pg-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>Sesiones recientes</span>
-                <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{sessions.length}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--pg-text)", marginBottom: 3 }}>{name}</div>
+              <div style={{ fontSize: 11, color: "var(--pg-muted)" }}>
+                {member.profile?.username ? `@${member.profile.username}` : "Sin usuario"}
               </div>
-              {sessions.length > 0 ? (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: SESSION_COL, padding: "5px 14px", borderBottom: "1px solid var(--pg-border)", background: "rgba(0,0,0,0.2)" }}>
-                    {["Fecha", "Rutina / Sesión libre", "Ejerc.", "Duración"].map(h => (
-                      <span key={h} style={{ fontSize: 8, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", fontWeight: 500 }}>{h}</span>
-                    ))}
-                  </div>
-                  {sessions.map(s => (
-                    <div key={s.id} className="pg-row" style={{ display: "grid", gridTemplateColumns: SESSION_COL, padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.03)", alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{s.date}</span>
-                      <div>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pg-text)" }}>
-                          {s.dayName ?? (s.hasRoutine ? "Rutina" : "Sesión libre")}
-                        </span>
-                        {s.notes && (
-                          <div style={{ fontSize: 10, color: "var(--pg-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {s.notes}
-                          </div>
-                        )}
-                      </div>
-                      <span style={{ fontSize: 11, color: "var(--pg-muted)", fontVariantNumeric: "tabular-nums" }}>{s.exercises}</span>
-                      <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{s.duration ?? "—"}</span>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div style={{ padding: "28px", textAlign: "center", fontSize: 12, color: "var(--pg-muted)" }}>
-                  Sin sesiones registradas aún.
-                </div>
-              )}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: ROLE_COLOR[member.role].bg, color: ROLE_COLOR[member.role].fg, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {ROLE_LABEL[member.role]}
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: member.status === "suspended" ? "var(--pg-amber-bg)" : "var(--pg-green-bg)", color: member.status === "suspended" ? "var(--pg-amber)" : "var(--pg-green)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {member.status === "suspended" ? "Suspendido" : "Activo"}
+              </span>
             </div>
           </div>
 
-          {/* Right: profile + active routines */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-
-            {/* Profile card */}
-            <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, padding: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--pg-accent-bg)", border: "1px solid rgba(212,168,83,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "var(--pg-accent)", flexShrink: 0 }}>
-                  {initials(name)}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--pg-text)" }}>{name}</div>
-                  {profile?.username && (
-                    <div style={{ fontSize: 11, color: "var(--pg-muted)", marginTop: 2 }}>@{profile.username}</div>
-                  )}
-                </div>
+          {/* Stats strip */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: groups.length > 0 ? 14 : 0 }}>
+            {[
+              { label: "Sesiones totales", value: (totalCount ?? 0).toString() },
+              { label: "Esta semana",      value: sessionsThisWeek.toString() },
+              { label: "Duración prom.",   value: avgDuration > 0 ? formatDuration(Math.round(avgDuration)) : "—" },
+            ].map(s => (
+              <div key={s.label} style={{ background: "var(--pg-surface)", borderRadius: 6, padding: "10px 12px" }}>
+                <div style={{ fontSize: 8, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--pg-muted)", marginBottom: 4, fontWeight: 500 }}>{s.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "var(--pg-accent)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.5px" }}>{s.value}</div>
               </div>
+            ))}
+          </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {[
-                  { label: "Edad",    value: profile?.edad       },
-                  { label: "Nivel",   value: profile?.nivel ? (NIVEL_LABELS[profile.nivel] ?? profile.nivel) : null },
-                  { label: "Equipo",  value: profile?.equipamiento },
-                  { label: "Lesiones",value: profile?.lesiones   },
-                ].filter(r => r.value).map(r => (
-                  <div key={r.label} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "var(--pg-muted)", flexShrink: 0 }}>{r.label}</span>
-                    <span style={{ fontSize: 10, color: "var(--pg-text)", textAlign: "right" }}>{r.value}</span>
-                  </div>
-                ))}
-                {profile?.objetivo && profile.objetivo.length > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "var(--pg-muted)", flexShrink: 0 }}>Objetivos</span>
-                    <span style={{ fontSize: 10, color: "var(--pg-text)", textAlign: "right" }}>{profile.objetivo.join(", ")}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Active routines */}
-            {activeRoutines.length > 0 && (
-              <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--pg-border)" }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>
-                    Rutina{activeRoutines.length > 1 ? "s" : ""} activa{activeRoutines.length > 1 ? "s" : ""}
-                  </span>
-                </div>
-                {activeRoutines.map(r => (
-                  <Link key={r.id} href={`/routines/${r.id}`} style={{ display: "block", padding: "11px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)", textDecoration: "none" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{r.name}</div>
-                      <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: TYPE_BG[r.type], color: TYPE_COLOR[r.type], flexShrink: 0, marginLeft: 6 }}>
-                        {TYPE_LABELS[r.type]}
-                      </span>
-                    </div>
-                    {r.daysCount > 0 && (
-                      <>
-                        <div style={{ display: "flex", gap: 3, marginBottom: 5 }}>
-                          {Array.from({ length: r.daysCount }, (_, i) => (
-                            <div key={i} style={{ flex: 1, height: 3, background: r.completedDays.includes(i) ? "var(--pg-accent)" : "var(--pg-surface)", borderRadius: 2 }} />
-                          ))}
-                        </div>
-                        <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>
-                          {r.completedDays.length} de {r.daysCount} días completados
-                        </div>
-                      </>
-                    )}
+          {/* Groups */}
+          {groups.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 9, letterSpacing: "1px", textTransform: "uppercase", color: "var(--pg-muted)", fontWeight: 500, flexShrink: 0 }}>Planteles:</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {groups.map(g => (
+                  <Link key={g.id} href={`/squads/${g.id}`} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "var(--pg-surface)", color: "var(--pg-muted)", textDecoration: "none" }}>
+                    {g.name}
                   </Link>
                 ))}
               </div>
-            )}
-
-            {activeRoutines.length === 0 && (
-              <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, padding: "16px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "var(--pg-disabled)" }}>Sin rutinas activas</div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+
+        {/* Session history */}
+        <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--pg-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pg-text)" }}>Historial de sesiones</span>
+            <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>
+              {(totalCount ?? 0) > 50 ? "Últimas 50 sesiones" : `${totalCount ?? 0} en total`}
+            </span>
+          </div>
+
+          {logs.length === 0 ? (
+            <div style={{ padding: 28, textAlign: "center", fontSize: 12, color: "var(--pg-muted)" }}>
+              Este jugador aún no registró sesiones.
+            </div>
+          ) : (
+            logs.map((log, i) => {
+              const exercises = parseExercises(log.exercises);
+              const isLast = i === logs.length - 1;
+              return (
+                <div
+                  key={log.id}
+                  style={{ padding: "14px 16px", borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)" }}
+                >
+                  {/* Session header */}
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: (exercises.length > 0 || log.notes) ? 10 : 0 }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)", marginBottom: 3 }}>
+                        {log.routine_day_name || "Sesión libre"}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>
+                        {formatRelative(log.created_at)} · {formatDate(log.created_at)} · {formatTime(log.created_at)}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      {exercises.length > 0 && (
+                        <span style={{ fontSize: 9, color: "var(--pg-disabled)" }}>
+                          {exercises.length} ejercicio{exercises.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {(() => {
+                        const vol = calcSessionVolume(exercises);
+                        return vol > 0 ? (
+                          <span style={{ fontSize: 9, color: "var(--pg-muted)", fontVariantNumeric: "tabular-nums" }}>
+                            {vol.toLocaleString("es-AR")} kg
+                          </span>
+                        ) : null;
+                      })()}
+                      {log.duration_seconds && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pg-accent)", fontVariantNumeric: "tabular-nums" }}>
+                          {formatDuration(log.duration_seconds)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {log.notes && (
+                    <div style={{ fontSize: 11, color: "var(--pg-muted)", fontStyle: "italic", marginBottom: exercises.length > 0 ? 8 : 0, padding: "6px 10px", background: "rgba(255,255,255,0.03)", borderRadius: 5, borderLeft: "2px solid var(--pg-border2)" }}>
+                      {log.notes}
+                    </div>
+                  )}
+
+                  {/* Exercise list */}
+                  {exercises.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {exercises.map((ex, j) => {
+                        const exName = ex.name || ex.exercise_name || `Ejercicio ${j + 1}`;
+                        const sets = ex.sets ?? ex.completed_sets ?? [];
+                        const completedSets = sets.filter(s => s.completed !== false);
+                        const volume = calcExerciseVolume(sets);
+                        return (
+                          <div key={j} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6 }}>
+                            {/* Exercise name + meta */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {exName}
+                              </span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                                {sets.length > 0 && (
+                                  <span style={{ fontSize: 9, color: completedSets.length === sets.length ? "var(--pg-green)" : "var(--pg-amber)", letterSpacing: "0.3px" }}>
+                                    {completedSets.length}/{sets.length} series
+                                  </span>
+                                )}
+                                {volume > 0 && (
+                                  <span style={{ fontSize: 9, color: "var(--pg-muted)", letterSpacing: "0.3px" }}>
+                                    {volume.toLocaleString("es-AR")} kg vol.
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {/* Set chips */}
+                            {sets.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                {sets.map((s, k) => <SetChip key={k} s={s} />)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
       </div>
     </>
   );

@@ -99,7 +99,8 @@ export default async function DashboardPage() {
     .from("workout_logs")
     .select("user_id, created_at, duration_seconds")
     .in("user_id", queryIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500);
 
   const lastSession = new Map<string, { at: string; duration: number | null }>();
   for (const log of (lastLogs ?? [])) {
