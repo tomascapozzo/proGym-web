@@ -48,11 +48,11 @@ export async function addQuestion(formData: FormData) {
 
   const formId                  = formData.get("form_id") as string;
   const questionText            = formData.get("question_text") as string;
-  const type                    = formData.get("type") as string;
+  const type                    = formData.get("type") as "text" | "scale" | "multiple_choice" | "yes_no" | "one_rm";
   const required                = formData.get("required") === "true";
   const optionsRaw              = formData.get("options") as string | null;
   const dependsOnQuestionId     = formData.get("depends_on_question_id") as string | null;
-  const dependsOnAnswer         = formData.get("depends_on_answer") as string | null;
+  const dependsOnAnswer         = formData.get("depends_on_answer") as "si" | "no" | null;
 
   if (!formId || !questionText?.trim() || !type) {
     return { error: "Datos incompletos" };
@@ -98,11 +98,11 @@ export async function updateQuestion(formData: FormData) {
 
   const questionId              = formData.get("question_id") as string;
   const questionText            = formData.get("question_text") as string;
-  const type                    = formData.get("type") as string;
+  const type                    = formData.get("type") as "text" | "scale" | "multiple_choice" | "yes_no" | "one_rm";
   const required                = formData.get("required") === "true";
   const optionsRaw              = formData.get("options") as string | null;
   const dependsOnQuestionId     = formData.get("depends_on_question_id") as string | null;
-  const dependsOnAnswer         = formData.get("depends_on_answer") as string | null;
+  const dependsOnAnswer         = formData.get("depends_on_answer") as "si" | "no" | null;
 
   if (!questionId || !questionText?.trim()) return { error: "Datos incompletos" };
 
