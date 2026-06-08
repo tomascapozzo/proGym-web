@@ -236,7 +236,7 @@ function AddQuestionPanel({ formId, nextIndex, clubId, onAdded }: AddQuestionPan
     const res = await addQuestion(formId, type, text.trim(), options, required, nextIndex);
     setSaving(false);
     if (res.ok && res.id) {
-      onAdded({ id: res.id, form_id: formId, type, question_text: text.trim(), options, required, order_index: nextIndex });
+      onAdded({ id: res.id, form_id: formId, type, question_text: text.trim(), options, required, order_index: nextIndex, depends_on_question_id: null, depends_on_answer: null });
       reset();
     }
   };

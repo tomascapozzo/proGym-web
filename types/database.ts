@@ -399,6 +399,8 @@ export type Database = {
           options: Json | null;
           order_index: number;
           required: boolean;
+          depends_on_question_id: string | null;
+          depends_on_answer: "si" | "no" | null;
         };
         Insert: {
           form_id: string;
@@ -407,6 +409,8 @@ export type Database = {
           options?: Json | null;
           order_index: number;
           required?: boolean;
+          depends_on_question_id?: string | null;
+          depends_on_answer?: "si" | "no" | null;
         };
         Update: {
           type?: "text" | "scale" | "multiple_choice" | "yes_no" | "one_rm";
@@ -414,6 +418,8 @@ export type Database = {
           options?: Json | null;
           order_index?: number;
           required?: boolean;
+          depends_on_question_id?: string | null;
+          depends_on_answer?: "si" | "no" | null;
         };
         Relationships: [];
       };
