@@ -17,6 +17,7 @@ The two apps share the same Supabase backend (same PostgreSQL database, same Aut
 - **Planteles / Squads** (`/squads`): real group list from `club_groups`, create group form
 - **Squads detail** (`/squads/[id]`): group member list, add/remove members
 - **Invitations** (`/invitations`): active invite codes separated by role (coach / player), generate + revoke
+- **Anamnesis** (`/anamnesis`): editor for the club's onboarding form — coaches can add/edit/reorder/delete questions of all types (text, yes_no, scale, multiple_choice, one_rm)
 
 ### Not yet implemented (stubs or missing pages)
 
@@ -141,11 +142,11 @@ club_groups       (id, club_id, name, description, created_by, created_at)
 club_group_members(id, group_id, user_id, added_by, added_at)
 club_invitations  (id, club_id, created_by, code, role ['coach'|'player'],
                    max_uses, uses_count, expires_at, target_group_id, status, created_at)
-profiles          (id, name, username, ...)
+profiles          (id, name, lastname, onboarding_completed, lesiones_previas, gimnasio, position, pr_exercises, one_rm, ...)
 
--- Forms (built in DB, not yet surfaced in UI)
-club_forms               (id, club_id, created_by, title, description, status, created_at)
-club_form_questions      (id, form_id, type ['text'|'scale'|'multiple_choice'|'yes_no'], question_text, options jsonb, order_index, required)
+-- Forms
+club_forms               (id, club_id, created_by, title, description, status, template_type ['anamnesis'|'wellness'], created_at)
+club_form_questions      (id, form_id, type ['text'|'scale'|'multiple_choice'|'yes_no'|'one_rm'], question_text, options jsonb, order_index, required)
 club_form_distributions  (id, form_id, target_type ['group'|'player'], target_id, due_at, created_by)
 club_form_responses      (id, distribution_id, user_id, submitted_at)
 club_form_answers        (id, response_id, question_id, answer_text, answer_number, answer_options jsonb)

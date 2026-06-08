@@ -134,7 +134,7 @@ export default async function TeamMemberPage({
   // Member must belong to the same club
   const { data: memberRaw } = await supabase
     .from("club_members")
-    .select("id, user_id, role, status, joined_at, profile:profiles(name, username)")
+    .select("id, user_id, role, status, joined_at, profile:profiles(name, lastname)")
     .eq("id", id)
     .eq("club_id", club.id)
     .single();
@@ -147,10 +147,10 @@ export default async function TeamMemberPage({
     role: ClubRole;
     status: string;
     joined_at: string;
-    profile: { name: string; username: string } | null;
+    profile: { name: string; lastname: string } | null;
   };
 
-  const name = member.profile?.name?.trim() || "Sin nombre";
+  const name = [member.profile?.name, member.profile?.lastname].filter(Boolean).join(" ") || "Sin nombre";
 
   // Groups this member belongs to (within this club only)
   const { data: gmRaw } = await supabase
@@ -244,7 +244,7 @@ export default async function TeamMemberPage({
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--pg-text)", marginBottom: 3 }}>{name}</div>
               <div style={{ fontSize: 11, color: "var(--pg-muted)" }}>
-                {member.profile?.username ? `@${member.profile.username}` : "Sin usuario"}
+                {member.profile?.lastname || "—"}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>

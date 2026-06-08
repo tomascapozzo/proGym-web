@@ -22,7 +22,7 @@ export interface ClubMember {
 }
 
 export interface ClubMemberWithProfile extends ClubMember {
-  profile: { id: string; name: string; username: string };
+  profile: { id: string; name: string; lastname: string };
 }
 
 export interface ClubGroup {

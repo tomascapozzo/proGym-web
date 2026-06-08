@@ -10,6 +10,7 @@ type Notice = { kind: "error" | "info"; text: string };
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName]         = useState("");
+  const [lastname, setLastname] = useState("");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [notice, setNotice]     = useState<Notice | null>(null);
@@ -17,15 +18,12 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log("[signup] handleSubmit called");
     setNotice(null);
     setLoading(true);
 
     try {
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signUp({ email, password });
-
-      console.log("[signup] signUp result:", { user: data?.user?.id, session: !!data?.session, error: authError?.message });
 
       if (authError) {
         const msg = authError.message.toLowerCase();
@@ -44,13 +42,6 @@ export default function SignupPage() {
         return;
       }
 
-      // Email confirmation is enabled — user exists but no session yet
-      if (!data.session) {
-        setNotice({ kind: "info", text: "Revisá tu email para confirmar la cuenta antes de ingresar." });
-        setLoading(false);
-        return;
-      }
-
       if (!data.user) {
         setNotice({ kind: "error", text: "No se pudo crear la cuenta." });
         setLoading(false);
@@ -58,15 +49,11 @@ export default function SignupPage() {
       }
 
       const trimmedName = name.trim();
-      const username = trimmedName
-        ? `${trimmedName.toLowerCase().replace(/\s+/g, "")}${Math.floor(Math.random() * 1000)}`
-        : `user${Math.floor(Math.random() * 100000)}`;
+      const trimmedLastname = lastname.trim();
 
       const { error: profileError } = await supabase
         .from("profiles")
-        .upsert({ id: data.user.id, name: trimmedName, username });
-
-      console.log("[signup] profile upsert:", { error: profileError?.message });
+        .insert({ id: data.user.id, name: trimmedName, lastname: trimmedLastname });
 
       if (profileError) {
         setNotice({ kind: "error", text: "Cuenta creada, pero hubo un error al guardar el perfil. Intentá de nuevo." });
@@ -116,7 +103,19 @@ export default function SignupPage() {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Juan Pérez"
+                placeholder="Juan"
+                required
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--pg-muted)", display: "block", marginBottom: 6 }}>Apellido</label>
+              <input
+                type="text"
+                value={lastname}
+                onChange={e => setLastname(e.target.value)}
+                placeholder="Pérez"
                 required
                 style={inputStyle}
               />

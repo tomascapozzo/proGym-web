@@ -55,8 +55,8 @@ export default function ShareGroupsPanel({
       else setError(result.error ?? "Error al quitar el grupo.");
     } else {
       const result = await shareRoutine(routineId, groupId);
-      if (result.ok) setGroupShares(prev => [...prev, { id: `tmp-${Date.now()}-${Math.random()}`, group_id: groupId }]);
-      else setError(result.error ?? "Error al compartir.");
+      if (result.ok && result.shareId) setGroupShares(prev => [...prev, { id: result.shareId!, group_id: groupId }]);
+      else if (!result.ok) setError(result.error ?? "Error al compartir.");
     }
     setPendingGroup(null);
   }
@@ -71,8 +71,8 @@ export default function ShareGroupsPanel({
       else setError(result.error ?? "Error al quitar el jugador.");
     } else {
       const result = await shareRoutineWithPlayer(routineId, playerId);
-      if (result.ok) setPlayerShares(prev => [...prev, { id: `tmp-${Date.now()}-${Math.random()}`, player_id: playerId }]);
-      else setError(result.error ?? "Error al compartir.");
+      if (result.ok && result.shareId) setPlayerShares(prev => [...prev, { id: result.shareId!, player_id: playerId }]);
+      else if (!result.ok) setError(result.error ?? "Error al compartir.");
     }
     setPendingPlayer(null);
   }

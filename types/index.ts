@@ -91,6 +91,12 @@ export interface TeamPlayerWithSquads extends TeamPlayer {
 
 // ── Calendar (Calendario) ─────────────────────────────────────────────────────
 
+export interface CalendarEventRecurrence {
+  frequency: "weekly" | "biweekly";
+  days_of_week: number[]; // 0=Sun … 6=Sat
+  until: string | null;   // ISO date or null = no end
+}
+
 export interface CalendarEvent {
   id: string;
   type: "entrenamiento" | "partido";
@@ -100,7 +106,29 @@ export interface CalendarEvent {
   endsAt: string | null;
   opponent: string | null;
   location: "local" | "visitante" | null;
-  squadIds: string[];
+  groupIds: string[];
+  recurrence: CalendarEventRecurrence | null;
 }
 
 export type CalendarView = "month" | "week";
+
+// ── Season Periods ────────────────────────────────────────────────────────────
+
+export type PeriodType = "temporada" | "pretemporada" | "postemporada" | "torneo" | "otro";
+
+export const PERIOD_TYPE_LABELS: Record<PeriodType, string> = {
+  temporada:    "Temporada",
+  pretemporada: "Pretemporada",
+  postemporada: "Postemporada",
+  torneo:       "Torneo",
+  otro:         "Otro",
+};
+
+export interface ClubPeriod {
+  id: string;
+  name: string;
+  type: PeriodType;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  color: SquadColor;
+}

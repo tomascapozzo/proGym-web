@@ -66,7 +66,7 @@ async function enrollPlayers(
 export async function shareRoutine(
   routineId: string,
   groupId: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; shareId?: string; error?: string }> {
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
@@ -79,7 +79,7 @@ export async function shareRoutine(
     .eq("target_group_id", groupId)
     .maybeSingle();
 
-  if (existing) return { ok: true }; // already shared, nothing to do
+  if (existing) return { ok: true, shareId: existing.id }; // already shared, nothing to do
 
   const { data: share, error: shareError } = await ctx.supabase
     .from("routine_shares")
@@ -117,7 +117,7 @@ export async function shareRoutine(
   }
 
   revalidatePath(`/routines/${routineId}`);
-  return { ok: true };
+  return { ok: true, shareId: share.id };
 }
 
 export async function unshareRoutine(
@@ -178,7 +178,7 @@ export async function unshareRoutine(
 export async function shareRoutineWithPlayer(
   routineId: string,
   playerId: string
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; shareId?: string; error?: string }> {
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
@@ -226,7 +226,7 @@ export async function shareRoutineWithPlayer(
   await enrollPlayers(ctx.supabase, routineId, shareId, [playerId]);
 
   revalidatePath(`/routines/${routineId}`);
-  return { ok: true };
+  return { ok: true, shareId };
 }
 
 export async function unshareRoutineFromPlayer(

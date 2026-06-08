@@ -10,7 +10,7 @@ type MemberRow = {
   user_id: string;
   role: ClubRole;
   status: string;
-  profile: { name: string; username: string } | null;
+  profile: { name: string; lastname: string } | null;
 };
 
 const ROLE_LABEL: Record<ClubRole, string> = { admin: "Admin", coach: "Coach", player: "Jugador" };
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
   // ── Members ──────────────────────────────────────────────
   const { data: membersRaw } = await supabase
     .from("club_members")
-    .select("id, user_id, role, status, profile:profiles(name, username)")
+    .select("id, user_id, role, status, profile:profiles(name, lastname)")
     .eq("club_id", club.id)
     .order("joined_at");
 

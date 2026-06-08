@@ -34,14 +34,15 @@ interface Props {
   status: "active" | "suspended";
   joinedAt: string;
   name: string;
-  username: string;
+  lastname: string;
   groups: { id: string; name: string }[];
 }
 
-export default function TeamRow({ memberId, role, status, joinedAt, name, username, groups }: Props) {
+export default function TeamRow({ memberId, role, status, joinedAt, name, lastname, groups }: Props) {
   const router = useRouter();
   const roleColor = ROLE_COLOR[role];
   const isSuspended = status === "suspended";
+  const fullName = [name, lastname].filter(Boolean).join(" ");
 
   return (
     <div
@@ -58,15 +59,15 @@ export default function TeamRow({ memberId, role, status, joinedAt, name, userna
       }}
     >
       <div style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--pg-surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "var(--pg-muted)" }}>
-        {initials(name)}
+        {initials(fullName)}
       </div>
 
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {name}
+        {fullName}
       </div>
 
       <div style={{ fontSize: 11, color: "var(--pg-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {username !== "—" ? `@${username}` : "—"}
+        {lastname || "—"}
       </div>
 
       <span style={{

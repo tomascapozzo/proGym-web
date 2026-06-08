@@ -13,18 +13,11 @@ export type Database = {
         Row: {
           id: string;
           name: string;
-          username: string;
+          lastname: string;
           onboarding_completed: boolean;
-          edad: string | null;
-          profesion: string | null;
-          disponibilidad: string | null;
-          equipamiento: string | null;
-          nivel: string | null;
-          actualidad: string | null;
-          objetivo: string[] | null;
-          peso: string | null;
-          altura: string | null;
-          lesiones: string | null;
+          lesiones_previas: Json | null;
+          gimnasio: string | null;
+          position: string | null;
           pr_exercises: string[];
           one_rm: Json;
           created_at: string;
@@ -33,35 +26,21 @@ export type Database = {
         Insert: {
           id: string;
           name?: string;
-          username?: string;
+          lastname?: string;
           onboarding_completed?: boolean;
-          edad?: string | null;
-          profesion?: string | null;
-          disponibilidad?: string | null;
-          equipamiento?: string | null;
-          nivel?: string | null;
-          actualidad?: string | null;
-          objetivo?: string[] | null;
-          peso?: string | null;
-          altura?: string | null;
-          lesiones?: string | null;
+          lesiones_previas?: Json | null;
+          gimnasio?: string | null;
+          position?: string | null;
           pr_exercises?: string[];
           one_rm?: Json;
         };
         Update: {
           name?: string;
-          username?: string;
+          lastname?: string;
           onboarding_completed?: boolean;
-          edad?: string | null;
-          profesion?: string | null;
-          disponibilidad?: string | null;
-          equipamiento?: string | null;
-          nivel?: string | null;
-          actualidad?: string | null;
-          objetivo?: string[] | null;
-          peso?: string | null;
-          altura?: string | null;
-          lesiones?: string | null;
+          lesiones_previas?: Json | null;
+          gimnasio?: string | null;
+          position?: string | null;
           pr_exercises?: string[];
           one_rm?: Json;
         };
@@ -219,6 +198,7 @@ export type Database = {
           created_by: string;
           created_at: string;
           kind: "squad" | "training";
+          color: "red" | "amber" | "blue" | "green" | "purple" | "pink" | "orange" | "teal";
         };
         Insert: {
           club_id: string;
@@ -227,12 +207,56 @@ export type Database = {
           position_rules?: string[];
           created_by: string;
           kind?: "squad" | "training";
+          color?: "red" | "amber" | "blue" | "green" | "purple" | "pink" | "orange" | "teal";
         };
         Update: {
           name?: string;
           description?: string | null;
           position_rules?: string[];
           kind?: "squad" | "training";
+          color?: "red" | "amber" | "blue" | "green" | "purple" | "pink" | "orange" | "teal";
+        };
+        Relationships: [];
+      };
+      club_events: {
+        Row: {
+          id: string;
+          club_id: string;
+          created_by: string;
+          type: "entrenamiento" | "partido";
+          title: string;
+          description: string | null;
+          starts_at: string;
+          ends_at: string | null;
+          opponent: string | null;
+          location: "local" | "visitante" | null;
+          group_ids: string[];
+          recurrence: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          club_id: string;
+          created_by: string;
+          type: "entrenamiento" | "partido";
+          title: string;
+          description?: string | null;
+          starts_at: string;
+          ends_at?: string | null;
+          opponent?: string | null;
+          location?: "local" | "visitante" | null;
+          group_ids?: string[];
+          recurrence?: Json | null;
+        };
+        Update: {
+          type?: "entrenamiento" | "partido";
+          title?: string;
+          description?: string | null;
+          starts_at?: string;
+          ends_at?: string | null;
+          opponent?: string | null;
+          location?: "local" | "visitante" | null;
+          group_ids?: string[];
+          recurrence?: Json | null;
         };
         Relationships: [];
       };
@@ -486,6 +510,36 @@ export type Database = {
           answer_text?: string | null;
           answer_number?: number | null;
           answer_options?: Json | null;
+        };
+        Relationships: [];
+      };
+      club_periods: {
+        Row: {
+          id: string;
+          club_id: string;
+          created_by: string;
+          name: string;
+          type: "temporada" | "pretemporada" | "postemporada" | "torneo" | "otro";
+          start_date: string;
+          end_date: string;
+          color: "red" | "amber" | "blue" | "green" | "purple" | "pink" | "orange" | "teal";
+          created_at: string;
+        };
+        Insert: {
+          club_id: string;
+          created_by: string;
+          name: string;
+          type: "temporada" | "pretemporada" | "postemporada" | "torneo" | "otro";
+          start_date: string;
+          end_date: string;
+          color?: "red" | "amber" | "blue" | "green" | "purple" | "pink" | "orange" | "teal";
+        };
+        Update: {
+          name?: string;
+          type?: "temporada" | "pretemporada" | "postemporada" | "torneo" | "otro";
+          start_date?: string;
+          end_date?: string;
+          color?: "red" | "amber" | "blue" | "green" | "purple" | "pink" | "orange" | "teal";
         };
         Relationships: [];
       };

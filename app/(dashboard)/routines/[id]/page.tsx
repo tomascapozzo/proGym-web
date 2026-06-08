@@ -48,7 +48,7 @@ export default async function RoutineDetailPage({ params }: Props) {
   // Owner profile
   const { data: ownerProfile } = await supabase
     .from("profiles")
-    .select("name, username")
+    .select("name, lastname")
     .eq("id", routine.user_id)
     .single();
 
@@ -154,7 +154,7 @@ export default async function RoutineDetailPage({ params }: Props) {
             </span>
             {ownerProfile && (
               <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>
-                {ownerProfile.name || ownerProfile.username}
+                {[ownerProfile.name, ownerProfile.lastname].filter(Boolean).join(" ") || "—"}
               </span>
             )}
           </div>

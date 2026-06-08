@@ -6,7 +6,7 @@ import { UserPlus, X } from "lucide-react";
 interface Member {
   user_id: string;
   name: string;
-  username: string;
+  lastname: string;
 }
 
 type ActionResult = { ok: boolean; error?: string };
@@ -99,7 +99,7 @@ export default function GroupMemberManager({
                   <Avatar name={m.name} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{m.name || "Sin nombre"}</div>
-                    {m.username && <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>@{m.username}</div>}
+                    {m.lastname && <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>{m.lastname}</div>}
                   </div>
                   <button
                     onClick={() => handleAdd(m.user_id)}
@@ -130,7 +130,7 @@ export default function GroupMemberManager({
                 <Avatar name={m.name} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{m.name || "Sin nombre"}</div>
-                  {m.username && <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>@{m.username}</div>}
+                  {m.lastname && <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>{m.lastname}</div>}
                 </div>
                 {canManage && (
                   <button

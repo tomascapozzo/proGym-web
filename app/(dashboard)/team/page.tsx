@@ -12,7 +12,7 @@ interface MemberRow {
   role: ClubRole;
   status: "active" | "suspended";
   joined_at: string;
-  profile: { id: string; name: string; username: string } | null;
+  profile: { id: string; name: string; lastname: string } | null;
 }
 
 interface GroupMembershipRow {
@@ -21,7 +21,7 @@ interface GroupMembershipRow {
 }
 
 const COL = "28px 1.5fr 0.9fr 70px 70px 1fr 100px";
-const HEADERS = ["", "Miembro", "Usuario", "Rol", "Estado", "Planteles", "Se unió"];
+const HEADERS = ["", "Miembro", "Apellido", "Rol", "Estado", "Planteles", "Se unió"];
 
 export default async function TeamPage() {
   const { user, membership, club } = await getCurrentMembership();
@@ -32,7 +32,7 @@ export default async function TeamPage() {
 
   const { data: membersRaw } = await supabase
     .from("club_members")
-    .select("*, profile:profiles(id, name, username)")
+    .select("*, profile:profiles(id, name, lastname)")
     .eq("club_id", club.id)
     .order("joined_at");
 
@@ -106,7 +106,7 @@ export default async function TeamPage() {
               status={m.status}
               joinedAt={m.joined_at}
               name={m.profile?.name?.trim() || "Sin nombre"}
-              username={m.profile?.username || "—"}
+              lastname={m.profile?.lastname || ""}
               groups={groupsByUser.get(m.user_id) ?? []}
             />
           ))}

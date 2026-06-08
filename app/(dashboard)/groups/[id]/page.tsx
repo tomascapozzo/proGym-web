@@ -21,7 +21,7 @@ interface GroupRow {
 
 interface ProfileRow {
   user_id: string;
-  profile: { id: string; name: string; username: string } | null;
+  profile: { id: string; name: string; lastname: string } | null;
 }
 
 export default async function GroupDetailPage({
@@ -59,7 +59,7 @@ export default async function GroupDetailPage({
   const { data: memberRowsRaw } = memberUserIds.length > 0
     ? await supabase
         .from("club_members")
-        .select("user_id, profile:profiles(id, name, username)")
+        .select("user_id, profile:profiles(id, name, lastname)")
         .eq("club_id", club.id)
         .in("user_id", memberUserIds)
     : { data: [] };
@@ -71,12 +71,12 @@ export default async function GroupDetailPage({
     .map(r => ({
       user_id: r.user_id,
       name: r.profile!.name ?? "",
-      username: r.profile!.username ?? "",
+      lastname: r.profile!.lastname ?? "",
     }));
 
   const { data: clubMembersRaw } = await supabase
     .from("club_members")
-    .select("user_id, profile:profiles(id, name, username)")
+    .select("user_id, profile:profiles(id, name, lastname)")
     .eq("club_id", club.id)
     .eq("role", "player");
 
@@ -87,7 +87,7 @@ export default async function GroupDetailPage({
     .map(r => ({
       user_id: r.user_id,
       name: r.profile!.name ?? "",
-      username: r.profile!.username ?? "",
+      lastname: r.profile!.lastname ?? "",
     }));
 
   return (
