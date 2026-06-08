@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { FormStatus, QuestionType, QuestionOptions, ClubFormSchedule } from "@/types/forms";
+import type { FormStatus, FormTemplateType, QuestionType, QuestionOptions, ClubFormSchedule } from "@/types/forms";
 
 async function getStaffContext() {
   const supabase = await createClient();
@@ -27,13 +27,14 @@ async function getStaffContext() {
 export async function createForm(
   title: string,
   description: string,
+  templateType: FormTemplateType,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
   const { data, error } = await ctx.supabase
     .from("club_forms")
-    .insert({ club_id: ctx.clubId, created_by: ctx.user.id, title, description: description || null, status: "draft" })
+    .insert({ club_id: ctx.clubId, created_by: ctx.user.id, title, description: description || null, status: "draft", template_type: templateType ?? null })
     .select("id")
     .single();
 
@@ -44,7 +45,7 @@ export async function createForm(
 
 export async function updateForm(
   formId: string,
-  fields: { title?: string; description?: string; status?: FormStatus },
+  fields: { title?: string; description?: string; status?: FormStatus; template_type?: FormTemplateType },
 ): Promise<{ ok: boolean; error?: string }> {
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
@@ -170,23 +171,84 @@ export async function distributeForm(
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
   // Prevent duplicate distributions
-  const { data: existing } = await ctx.supabase
+  const dupQuery = ctx.supabase
     .from("club_form_distributions")
     .select("id")
     .eq("form_id", formId)
-    .eq("target_type", targetType)
-    .eq("target_id", targetId)
-    .maybeSingle();
+    .eq("target_type", targetType);
+  if (targetType === "group") dupQuery.eq("target_group_id", targetId);
+  else dupQuery.eq("target_user_id", targetId);
+  const { data: existing } = await dupQuery.maybeSingle();
 
   if (existing) return { ok: false, error: "Este formulario ya fue enviado a ese destino." };
 
-  const { error } = await ctx.supabase
+  const payload = {
+    form_id: formId,
+    club_id: ctx.clubId,
+    distributed_by: ctx.user.id,
+    target_type: targetType,
+    target_group_id: targetType === "group" ? targetId : null,
+    target_user_id: targetType === "player" ? targetId : null,
+    due_at: dueAt || null,
+  };
+  console.log("[distributeForm] inserting:", JSON.stringify(payload));
+
+  const { data: inserted, error } = await ctx.supabase
     .from("club_form_distributions")
-    .insert({ form_id: formId, target_type: targetType, target_id: targetId, due_at: dueAt || null, created_by: ctx.user.id });
+    .insert(payload)
+    .select("id");
+
+  console.log("[distributeForm] result:", inserted, "error:", error?.message);
 
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/forms/${formId}`);
   return { ok: true };
+}
+
+export async function distributeFormToAllPlayers(
+  formId: string,
+  dueAt: string | null,
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  const ctx = await getStaffContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const { data: members, error: membersError } = await ctx.supabase
+    .from("club_members")
+    .select("user_id")
+    .eq("club_id", ctx.clubId)
+    .eq("role", "player");
+
+  if (membersError) return { ok: false, error: membersError.message };
+  if (!members || members.length === 0) return { ok: false, error: "No hay jugadores en el club." };
+
+  const { data: existing } = await ctx.supabase
+    .from("club_form_distributions")
+    .select("target_user_id")
+    .eq("form_id", formId)
+    .eq("target_type", "player");
+
+  const existingIds = new Set((existing ?? []).map((e) => e.target_user_id));
+  const toInsert = members
+    .filter((m) => !existingIds.has(m.user_id))
+    .map((m) => ({
+      form_id: formId,
+      club_id: ctx.clubId,
+      distributed_by: ctx.user.id,
+      target_type: "player" as const,
+      target_group_id: null,
+      target_user_id: m.user_id,
+      due_at: dueAt || null,
+    }));
+
+  if (toInsert.length === 0) return { ok: false, error: "Todos los jugadores ya recibieron este formulario." };
+
+  const { error } = await ctx.supabase
+    .from("club_form_distributions")
+    .insert(toInsert);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/forms/${formId}`);
+  return { ok: true, count: toInsert.length };
 }
 
 export async function deleteDistribution(
@@ -240,6 +302,54 @@ export async function upsertSchedule(
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/forms/${formId}`);
   return { ok: true, data: data as ClubFormSchedule };
+}
+
+export async function scheduleFormForAllPlayers(
+  formId: string,
+  daysOfWeek: number[],
+  sendTime: string,
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  const ctx = await getStaffContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const { data: members, error: membersError } = await ctx.supabase
+    .from("club_members")
+    .select("user_id")
+    .eq("club_id", ctx.clubId)
+    .eq("role", "player");
+
+  if (membersError) return { ok: false, error: membersError.message };
+  if (!members || members.length === 0) return { ok: false, error: "No hay jugadores en el club." };
+
+  const { data: existing } = await ctx.supabase
+    .from("club_form_schedules")
+    .select("target_id")
+    .eq("form_id", formId)
+    .eq("target_type", "player");
+
+  const existingIds = new Set((existing ?? []).map((e) => e.target_id));
+  const toInsert = members
+    .filter((m) => !existingIds.has(m.user_id))
+    .map((m) => ({
+      form_id: formId,
+      club_id: ctx.clubId,
+      target_type: "player" as const,
+      target_id: m.user_id,
+      days_of_week: daysOfWeek,
+      send_time: sendTime,
+      active: true,
+      created_by: ctx.user.id,
+    }));
+
+  if (toInsert.length === 0) return { ok: false, error: "Todos los jugadores ya tienen una programación para este formulario." };
+
+  const { error } = await ctx.supabase
+    .from("club_form_schedules")
+    .insert(toInsert);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/forms/${formId}`);
+  return { ok: true, count: toInsert.length };
 }
 
 export async function deleteSchedule(

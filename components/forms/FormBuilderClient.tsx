@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import ExercisePicker from "@/components/routines/ExercisePicker";
 import {
   createForm, updateForm, addQuestion, updateQuestion,
-  deleteQuestion, reorderQuestions, distributeForm, deleteDistribution,
-  upsertSchedule, deleteSchedule, toggleScheduleActive,
+  deleteQuestion, reorderQuestions, distributeForm, distributeFormToAllPlayers, deleteDistribution,
+  upsertSchedule, scheduleFormForAllPlayers, deleteSchedule, toggleScheduleActive,
 } from "@/app/(dashboard)/forms/actions";
 import type { ClubForm, ClubFormQuestion, ClubFormDistribution, ClubFormSchedule, QuestionType, QuestionOptions } from "@/types/forms";
 import type { LibraryExercise } from "@/types/routine";
@@ -366,7 +366,8 @@ type DistributionPanelProps = {
 };
 
 function DistributionPanel({ formId, groups, players, distributions, onUpdate }: DistributionPanelProps) {
-  const [targetType, setTargetType] = useState<"group" | "player">("group");
+  const router = useRouter();
+  const [targetType, setTargetType] = useState<"group" | "player" | "all">("group");
   const [targetId, setTargetId] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [saving, setSaving] = useState(false);
@@ -375,9 +376,17 @@ function DistributionPanel({ formId, groups, players, distributions, onUpdate }:
   const targetOptions = targetType === "group" ? groups : players;
 
   const send = async () => {
-    if (!targetId) return;
+    if (targetType !== "all" && !targetId) return;
     setSaving(true);
     setError("");
+    if (targetType === "all") {
+      const res = await distributeFormToAllPlayers(formId, dueAt || null);
+      setSaving(false);
+      if (!res.ok) { setError(res.error ?? "Error"); return; }
+      setDueAt("");
+      router.refresh();
+      return;
+    }
     const res = await distributeForm(formId, targetType, targetId, dueAt || null);
     setSaving(false);
     if (!res.ok) { setError(res.error ?? "Error"); return; }
@@ -392,8 +401,9 @@ function DistributionPanel({ formId, groups, players, distributions, onUpdate }:
   };
 
   const getTargetLabel = (d: ClubFormDistribution) => {
-    if (d.target_type === "group") return groups.find((g) => g.id === d.target_id)?.name ?? d.target_id;
-    return players.find((p) => p.id === d.target_id)?.name ?? d.target_id;
+    const id = d.target_group_id ?? d.target_user_id ?? "";
+    if (d.target_type === "group") return groups.find((g) => g.id === id)?.name ?? id;
+    return players.find((p) => p.id === id)?.name ?? id;
   };
 
   return (
@@ -436,28 +446,30 @@ function DistributionPanel({ formId, groups, players, distributions, onUpdate }:
       {/* Add distribution */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--pg-border)" }}>
-          {(["group", "player"] as const).map((t) => (
+          {(["group", "player", "all"] as const).map((t) => (
             <button key={t} onClick={() => { setTargetType(t); setTargetId(""); }}
               style={{
                 padding: "6px 12px", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
                 background: targetType === t ? "var(--pg-accent)" : "var(--pg-surface)",
                 color: targetType === t ? "var(--pg-accent-text)" : "var(--pg-muted)",
               }}>
-              {t === "group" ? "Grupo" : "Jugador"}
+              {t === "group" ? "Grupo" : t === "player" ? "Jugador" : "Todos"}
             </button>
           ))}
         </div>
 
-        <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
-          style={{ ...inputStyle, flex: 1, minWidth: 140, cursor: "pointer" }}>
-          <option value="">Seleccionar...</option>
-          {targetOptions.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-        </select>
+        {targetType !== "all" && (
+          <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
+            style={{ ...inputStyle, flex: 1, minWidth: 140, cursor: "pointer" }}>
+            <option value="">Seleccionar...</option>
+            {targetOptions.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+        )}
 
         <input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)}
           style={{ ...inputStyle, width: 140 }} title="Fecha límite (opcional)" />
 
-        <button onClick={send} disabled={saving || !targetId} style={saveBtn(saving || !targetId)}>
+        <button onClick={send} disabled={saving || (targetType !== "all" && !targetId)} style={saveBtn(saving || (targetType !== "all" && !targetId))}>
           {saving ? "Enviando..." : "Enviar"}
         </button>
       </div>
@@ -479,7 +491,8 @@ type SchedulePanelProps = {
 };
 
 function SchedulePanel({ formId, groups, players, schedules, onUpdate }: SchedulePanelProps) {
-  const [targetType, setTargetType] = useState<"group" | "player">("group");
+  const router = useRouter();
+  const [targetType, setTargetType] = useState<"group" | "player" | "all">("group");
   const [targetId, setTargetId] = useState("");
   const [days, setDays] = useState<number[]>([1, 3, 5]); // Mon, Wed, Fri
   const [sendTime, setSendTime] = useState("08:00");
@@ -490,8 +503,17 @@ function SchedulePanel({ formId, groups, players, schedules, onUpdate }: Schedul
     setDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort());
 
   const add = async () => {
-    if (!targetId || days.length === 0) return;
+    if (days.length === 0) return;
+    if (targetType !== "all" && !targetId) return;
     setSaving(true); setError("");
+    if (targetType === "all") {
+      const res = await scheduleFormForAllPlayers(formId, days, sendTime);
+      setSaving(false);
+      if (!res.ok) { setError(res.error ?? "Error"); return; }
+      setDays([1, 3, 5]);
+      router.refresh();
+      return;
+    }
     const res = await upsertSchedule(formId, null, targetType, targetId, days, sendTime);
     setSaving(false);
     if (!res.ok) { setError(res.error ?? "Error"); return; }
@@ -567,25 +589,27 @@ function SchedulePanel({ formId, groups, players, schedules, onUpdate }: Schedul
       {/* Add schedule */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid var(--pg-border)" }}>
-          {(["group", "player"] as const).map((t) => (
+          {(["group", "player", "all"] as const).map((t) => (
             <button key={t} onClick={() => { setTargetType(t); setTargetId(""); }}
               style={{
                 padding: "6px 10px", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
                 background: targetType === t ? "var(--pg-accent)" : "var(--pg-surface)",
                 color: targetType === t ? "var(--pg-accent-text)" : "var(--pg-muted)",
               }}>
-              {t === "group" ? "Grupo" : "Jugador"}
+              {t === "group" ? "Grupo" : t === "player" ? "Jugador" : "Todos"}
             </button>
           ))}
         </div>
 
-        <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
-          style={{ ...inputStyle, flex: 1, minWidth: 120, cursor: "pointer" }}>
-          <option value="">Seleccionar...</option>
-          {(targetType === "group" ? groups : players).map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
+        {targetType !== "all" && (
+          <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
+            style={{ ...inputStyle, flex: 1, minWidth: 120, cursor: "pointer" }}>
+            <option value="">Seleccionar...</option>
+            {(targetType === "group" ? groups : players).map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        )}
 
         <input type="time" value={sendTime} onChange={(e) => setSendTime(e.target.value)}
           style={{ ...inputStyle, width: 100 }} />
@@ -606,7 +630,7 @@ function SchedulePanel({ formId, groups, players, schedules, onUpdate }: Schedul
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8, gap: 6 }}>
         {error && <span style={{ fontSize: 11, color: "var(--pg-red)", flex: 1, alignSelf: "center" }}>{error}</span>}
-        <button onClick={add} disabled={saving || !targetId || days.length === 0} style={saveBtn(saving || !targetId || days.length === 0)}>
+        <button onClick={add} disabled={saving || (targetType !== "all" && !targetId) || days.length === 0} style={saveBtn(saving || (targetType !== "all" && !targetId) || days.length === 0)}>
           {saving ? "Guardando..." : "Agregar programación"}
         </button>
       </div>
@@ -633,6 +657,9 @@ export default function FormBuilderClient({ clubId, form: initialForm, questions
   const [title, setTitle] = useState(initialForm?.title ?? "");
   const [description, setDescription] = useState(initialForm?.description ?? "");
   const [status, setStatus] = useState(initialForm?.status ?? "draft");
+  const [templateTypeState, setTemplateTypeState] = useState<"anamnesis" | "wellness">(
+    initialForm?.template_type ?? "wellness",
+  );
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaError, setMetaError] = useState("");
 
@@ -649,12 +676,12 @@ export default function FormBuilderClient({ clubId, form: initialForm, questions
     setSavingMeta(true);
     setMetaError("");
     if (!formId) {
-      const res = await createForm(title, description);
+      const res = await createForm(title, description, templateTypeState);
       setSavingMeta(false);
       if (!res.ok) { setMetaError(res.error ?? "Error"); return; }
       router.replace(`/forms/${res.id}`);
     } else {
-      const res = await updateForm(formId, { title, description, status });
+      const res = await updateForm(formId, { title, description, status, template_type: templateTypeState });
       setSavingMeta(false);
       if (!res.ok) { setMetaError(res.error ?? "Error"); return; }
     }
@@ -721,6 +748,27 @@ export default function FormBuilderClient({ clubId, form: initialForm, questions
             rows={2}
             style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", marginBottom: 10 }}
           />
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--pg-muted)", marginBottom: 5 }}>
+              Tipo de formulario
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <select
+                value={templateTypeState}
+                onChange={(e) => setTemplateTypeState(e.target.value as "anamnesis" | "wellness")}
+                disabled={!!formId}
+                style={{ ...inputStyle, cursor: formId ? "not-allowed" : "pointer", opacity: formId ? 0.6 : 1 }}
+              >
+                <option value="wellness">Wellness</option>
+                <option value="anamnesis">Anamnesis</option>
+              </select>
+              {formId && (
+                <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>
+                  El tipo no se puede cambiar después de crear el formulario.
+                </span>
+              )}
+            </div>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {formId && !isTemplate && (
               <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}

@@ -25,6 +25,7 @@ export type ExerciseEntry = {
   nombre: string;
   reps: string[];
   peso?: string[];
+  rir?: string[];
   nota?: string;
   rpe?: boolean;
 };

@@ -139,10 +139,10 @@ export function useRoutineCreator(onSaved: () => void) {
       const copy: RoutineDay = {
         ...source,
         dia: `${source.dia} (copia)`,
-        ejercicios: source.ejercicios.map((ex) => ({ ...ex, reps: [...ex.reps], peso: ex.peso ? [...ex.peso] : undefined })),
+        ejercicios: source.ejercicios.map((ex) => ({ ...ex, reps: [...ex.reps], peso: ex.peso ? [...ex.peso] : undefined, rir: ex.rir ? [...ex.rir] : undefined })),
         circuitos: source.circuitos?.map((c) => ({
           ...c,
-          ejercicios: c.ejercicios.map((ex) => ({ ...ex, reps: [...ex.reps], peso: ex.peso ? [...ex.peso] : undefined })),
+          ejercicios: c.ejercicios.map((ex) => ({ ...ex, reps: [...ex.reps], peso: ex.peso ? [...ex.peso] : undefined, rir: ex.rir ? [...ex.rir] : undefined })),
         })),
       };
       const updated = [...prev];
@@ -194,7 +194,38 @@ export function useRoutineCreator(onSaved: () => void) {
       const newPeso = ex.peso
         ? Array.from({ length: count }, (_, i) => (ex.peso as string[])[i] ?? "")
         : undefined;
-      ejercicios[exIdx] = { ...ex, series: count, reps: newReps, peso: newPeso };
+      const newRir = ex.rir
+        ? Array.from({ length: count }, (_, i) => (ex.rir as string[])[i] ?? "")
+        : undefined;
+      ejercicios[exIdx] = { ...ex, series: count, reps: newReps, peso: newPeso, rir: newRir };
+      updated[dayIdx] = { ...updated[dayIdx], ejercicios };
+      return updated;
+    });
+  };
+
+  const updateExerciseRir = (dayIdx: number, exIdx: number, seriesIdx: number, value: string) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const ejercicios = [...updated[dayIdx].ejercicios];
+      const ex = ejercicios[exIdx];
+      const base = ex.rir ?? Array.from({ length: ex.series }, () => "");
+      const rir = base.map((r, i) => i >= seriesIdx ? value : r);
+      ejercicios[exIdx] = { ...ex, rir };
+      updated[dayIdx] = { ...updated[dayIdx], ejercicios };
+      return updated;
+    });
+  };
+
+  const toggleExercisePesoTipo = (dayIdx: number, exIdx: number) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const ejercicios = [...updated[dayIdx].ejercicios];
+      const ex = ejercicios[exIdx];
+      if (ex.rir !== undefined) {
+        ejercicios[exIdx] = { ...ex, peso: Array.from({ length: ex.series }, () => ""), rir: undefined };
+      } else {
+        ejercicios[exIdx] = { ...ex, rir: Array.from({ length: ex.series }, () => ""), peso: undefined };
+      }
       updated[dayIdx] = { ...updated[dayIdx], ejercicios };
       return updated;
     });
@@ -327,6 +358,9 @@ export function useRoutineCreator(onSaved: () => void) {
           peso: ex.peso
             ? Array.from({ length: count }, (_, i) => (ex.peso as string[])[i] ?? "")
             : undefined,
+          rir: ex.rir
+            ? Array.from({ length: count }, (_, i) => (ex.rir as string[])[i] ?? "")
+            : undefined,
         }));
         circuitos[circIdx] = { ...circ, rondas: count, ejercicios };
       } else {
@@ -399,6 +433,44 @@ export function useRoutineCreator(onSaved: () => void) {
       const base = ex.peso ?? Array.from({ length: circuitos[circIdx].rondas }, () => "");
       const peso = base.map((p, i) => i >= seriesIdx ? value : p);
       ejercicios[exIdx] = { ...ex, peso };
+      circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
+      updated[dayIdx] = { ...updated[dayIdx], circuitos };
+      return updated;
+    });
+  };
+
+  const updateCircuitExRir = (
+    dayIdx: number,
+    circIdx: number,
+    exIdx: number,
+    seriesIdx: number,
+    value: string,
+  ) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const circuitos = [...(updated[dayIdx].circuitos ?? [])];
+      const ejercicios = [...circuitos[circIdx].ejercicios];
+      const ex = ejercicios[exIdx];
+      const base = ex.rir ?? Array.from({ length: circuitos[circIdx].rondas }, () => "");
+      const rir = base.map((r, i) => i >= seriesIdx ? value : r);
+      ejercicios[exIdx] = { ...ex, rir };
+      circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
+      updated[dayIdx] = { ...updated[dayIdx], circuitos };
+      return updated;
+    });
+  };
+
+  const toggleCircuitExPesoTipo = (dayIdx: number, circIdx: number, exIdx: number) => {
+    setNewDays((prev) => {
+      const updated = [...prev];
+      const circuitos = [...(updated[dayIdx].circuitos ?? [])];
+      const ejercicios = [...circuitos[circIdx].ejercicios];
+      const ex = ejercicios[exIdx];
+      if (ex.rir !== undefined) {
+        ejercicios[exIdx] = { ...ex, peso: Array.from({ length: circuitos[circIdx].rondas }, () => ""), rir: undefined };
+      } else {
+        ejercicios[exIdx] = { ...ex, rir: Array.from({ length: circuitos[circIdx].rondas }, () => ""), peso: undefined };
+      }
       circuitos[circIdx] = { ...circuitos[circIdx], ejercicios };
       updated[dayIdx] = { ...updated[dayIdx], circuitos };
       return updated;
@@ -591,6 +663,8 @@ export function useRoutineCreator(onSaved: () => void) {
     updateExerciseSeries,
     updateExerciseRep,
     updateExercisePeso,
+    updateExerciseRir,
+    toggleExercisePesoTipo,
     updateExerciseNota,
     toggleExerciseRpe,
     removeExercise,
@@ -603,6 +677,8 @@ export function useRoutineCreator(onSaved: () => void) {
     toggleCircuitRpe,
     updateCircuitExRep,
     updateCircuitExPeso,
+    updateCircuitExRir,
+    toggleCircuitExPesoTipo,
     updateCircuitExNota,
     toggleCircuitExRpe,
     removeCircuitEx,

@@ -17,7 +17,7 @@ const ROUTINE_TYPES: { value: "daily" | "weekly" | "monthly"; label: string }[] 
 const RPE_OPTIONS: { value: RpePromptType; label: string; desc: string }[] = [
   { value: "serie",  label: "Por serie",   desc: "Al finalizar cada serie" },
   { value: "bloque", label: "Por bloque",  desc: "Al finalizar cada circuito o superset" },
-  { value: "sesion", label: "Por sesión",  desc: "Al finalizar el entrenamiento" },
+  { value: "sesion", label: "Por sesion",  desc: "Al finalizar el entrenamiento" },
   { value: "none",   label: "Sin RPE",     desc: "No registrar esfuerzo" },
 ];
 
@@ -47,7 +47,7 @@ const stepperBtn: React.CSSProperties = {
   flexShrink: 0,
 };
 
-// ─── ExerciseRow ──────────────────────────────────────────────────────────
+// ExerciseRow
 
 function ExerciseRow({
   ej,
@@ -56,6 +56,8 @@ function ExerciseRow({
   onUpdateSeries,
   onUpdateRep,
   onUpdatePeso,
+  onUpdateRir,
+  onTogglePesoTipo,
   onUpdateNota,
   onToggleRpe,
   onMove,
@@ -68,144 +70,145 @@ function ExerciseRow({
   onUpdateSeries: (v: number) => void;
   onUpdateRep: (si: number, v: string) => void;
   onUpdatePeso: (si: number, v: string) => void;
+  onUpdateRir: (si: number, v: string) => void;
+  onTogglePesoTipo: () => void;
   onUpdateNota: (v: string) => void;
   onToggleRpe: () => void;
   onMove: (dir: "up" | "down") => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
+  const isRirMode = ej.rir !== undefined;
+
   return (
-    <div
-      style={{
-        background: "var(--pg-bg)",
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 8,
-        border: "1px solid var(--pg-border)",
-      }}
-    >
-      {/* Name + reorder + remove */}
+    <div style={{ background: "var(--pg-bg)", borderRadius: 10, padding: 12, marginBottom: 8, border: "1px solid var(--pg-border)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--pg-text)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ej.nombre}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 8 }}>
-          <button
-            onClick={() => onMove("up")}
-            disabled={!canMoveUp}
-            style={{ ...stepperBtn, width: 22, height: 22, opacity: canMoveUp ? 1 : 0.3 }}
-          >
-            ↑
-          </button>
-          <button
-            onClick={() => onMove("down")}
-            disabled={!canMoveDown}
-            style={{ ...stepperBtn, width: 22, height: 22, opacity: canMoveDown ? 1 : 0.3 }}
-          >
-            ↓
-          </button>
-          <button
-            onClick={onRemove}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: "0 0 0 4px" }}
-          >
-            ×
-          </button>
+          <button onClick={() => onMove("up")} disabled={!canMoveUp} style={{ ...stepperBtn, width: 22, height: 22, opacity: canMoveUp ? 1 : 0.3 }}>up</button>
+          <button onClick={() => onMove("down")} disabled={!canMoveDown} style={{ ...stepperBtn, width: 22, height: 22, opacity: canMoveDown ? 1 : 0.3 }}>dn</button>
+          <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: "0 0 0 4px" }}>x</button>
         </div>
       </div>
-
-      {/* Series + descanso */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>Series</span>
-          <button style={stepperBtn} onClick={() => onUpdateSeries(Math.max(1, ej.series - 1))}>
-            −
-          </button>
-          <span style={{ width: 20, textAlign: "center", fontSize: 13, color: "var(--pg-text)" }}>
-            {ej.series}
-          </span>
-          <button style={stepperBtn} onClick={() => onUpdateSeries(Math.min(10, ej.series + 1))}>
-            +
-          </button>
+          <button style={stepperBtn} onClick={() => onUpdateSeries(Math.max(1, ej.series - 1))}>-</button>
+          <span style={{ width: 20, textAlign: "center", fontSize: 13, color: "var(--pg-text)" }}>{ej.series}</span>
+          <button style={stepperBtn} onClick={() => onUpdateSeries(Math.min(10, ej.series + 1))}>+</button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
           <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>Descanso</span>
-          <select
-            value={ej.descanso}
-            onChange={(e) => onUpdateDescanso(e.target.value)}
-            style={{
-              background: "var(--pg-surface)",
-              border: "1px solid var(--pg-border)",
-              borderRadius: 6,
-              padding: "4px 8px",
-              color: "var(--pg-text)",
-              fontSize: 12,
-              outline: "none",
-              cursor: "pointer",
-            }}
-          >
-            {DESCANSO_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
+          <select value={ej.descanso} onChange={(e) => onUpdateDescanso(e.target.value)} style={{ background: "var(--pg-surface)", border: "1px solid var(--pg-border)", borderRadius: 6, padding: "4px 8px", color: "var(--pg-text)", fontSize: 12, outline: "none", cursor: "pointer" }}>
+            {DESCANSO_OPTIONS.map((d) => (<option key={d} value={d}>{d}</option>))}
           </select>
         </div>
       </div>
-
-      {/* Reps + peso grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "32px 1fr 1fr",
-          gap: 5,
-          alignItems: "center",
-        }}
-      >
-        <span style={{ fontSize: 10, color: "var(--pg-muted)" }} />
-        <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>REPS</span>
-        <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>PESO (kg)</span>
-        {ej.reps.map((rep, si) => (
-          <React.Fragment key={si}>
-            <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>S{si + 1}</span>
-            <RepsPicker value={rep} onChange={(v) => onUpdateRep(si, v)} />
-            <input
-              value={ej.peso?.[si] ?? ""}
-              onChange={(e) => onUpdatePeso(si, e.target.value)}
-              placeholder="—"
-              style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center" }}
-            />
-          </React.Fragment>
-        ))}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 6, gap: 8 }}>
+          <span style={{ fontSize: 10, color: "var(--pg-muted)", flex: 1 }}>{isRirMode ? "RIR por serie" : "PESO (kg) por serie"}</span>
+          <div style={{ display: "flex", background: "var(--pg-surface)", borderRadius: 6, border: "1px solid var(--pg-border)", overflow: "hidden" }}>
+            <button onClick={onTogglePesoTipo} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "transparent" : "var(--pg-accent)", color: isRirMode ? "var(--pg-muted)" : "var(--pg-accent-text)", borderRadius: 5 }}>kg</button>
+            <button onClick={onTogglePesoTipo} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "var(--pg-accent)" : "transparent", color: isRirMode ? "var(--pg-accent-text)" : "var(--pg-muted)", borderRadius: 5 }}>RIR</button>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr", gap: 5, alignItems: "center" }}>
+          <span style={{ fontSize: 10, color: "var(--pg-muted)" }} />
+          <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>REPS</span>
+          <span style={{ fontSize: 10, textAlign: "center", color: isRirMode ? "var(--pg-accent)" : "var(--pg-muted)", fontWeight: isRirMode ? 700 : 400 }}>{isRirMode ? "RIR" : "PESO (kg)"}</span>
+          {ej.reps.map((rep, si) => (
+            <React.Fragment key={si}>
+              <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>S{si + 1}</span>
+              <RepsPicker value={rep} onChange={(v) => onUpdateRep(si, v)} />
+              {isRirMode ? (
+                <input value={ej.rir![si] ?? ""} onChange={(e) => onUpdateRir(si, e.target.value)} placeholder="0" type="number" style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center", background: "var(--pg-accent-bg)", color: "var(--pg-accent)", border: "1px solid var(--pg-accent)", fontWeight: 700 }} />
+              ) : (
+                <input value={ej.peso?.[si] ?? ""} onChange={(e) => onUpdatePeso(si, e.target.value)} placeholder="&mdash;" style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center" }} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
-
-      {/* Note + RPE toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-        <input
-          value={ej.nota ?? ""}
-          onChange={(e) => onUpdateNota(e.target.value)}
-          placeholder="Agregar nota..."
-          style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "5px 8px", color: ej.nota ? "var(--pg-text)" : "var(--pg-muted)" }}
-        />
-        <button
-          onClick={onToggleRpe}
-          style={{
-            fontSize: 10,
-            padding: "5px 10px",
-            borderRadius: 5,
-            border: `1px solid ${ej.rpe ? "var(--pg-blue)" : "var(--pg-border)"}`,
-            background: ej.rpe ? "var(--pg-blue-dim)" : "transparent",
-            color: ej.rpe ? "var(--pg-blue)" : "var(--pg-muted)",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-        >
-          Pedir RPE
-        </button>
+        <input value={ej.nota ?? ""} onChange={(e) => onUpdateNota(e.target.value)} placeholder="Agregar nota..." style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "5px 8px", color: ej.nota ? "var(--pg-text)" : "var(--pg-muted)" }} />
+        <button onClick={onToggleRpe} style={{ fontSize: 10, padding: "5px 10px", borderRadius: 5, border: `1px solid ${ej.rpe ? "var(--pg-blue)" : "var(--pg-border)"}`, background: ej.rpe ? "var(--pg-blue-dim)" : "transparent", color: ej.rpe ? "var(--pg-blue)" : "var(--pg-muted)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Pedir RPE</button>
       </div>
     </div>
   );
 }
 
-// ─── CircuitCard ──────────────────────────────────────────────────────────
+// CircuitExerciseRow
+
+function CircuitExerciseRow({
+  ex,
+  exIdx,
+  onMoveEx,
+  onRemoveEx,
+  onUpdateExRep,
+  onUpdateExPeso,
+  onUpdateExRir,
+  onToggleExPesoTipo,
+  onUpdateExNota,
+  onToggleExRpe,
+  totalEjercicios,
+}: {
+  ex: import("@/types/routine").ExerciseEntry;
+  exIdx: number;
+  rondas: number;
+  onMoveEx: (dir: "up" | "down") => void;
+  onRemoveEx: () => void;
+  onUpdateExRep: (ri: number, v: string) => void;
+  onUpdateExPeso: (ri: number, v: string) => void;
+  onUpdateExRir: (ri: number, v: string) => void;
+  onToggleExPesoTipo: () => void;
+  onUpdateExNota: (v: string) => void;
+  onToggleExRpe: () => void;
+  totalEjercicios: number;
+}) {
+  const isRirMode = ex.rir !== undefined;
+
+  return (
+    <div style={{ background: "var(--pg-bg)", borderRadius: 8, padding: 10, marginBottom: 6, border: "1px solid var(--pg-border)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{ex.nombre}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button onClick={() => onMoveEx("up")} disabled={exIdx === 0} style={{ ...stepperBtn, width: 22, height: 22, opacity: exIdx === 0 ? 0.3 : 1 }}>up</button>
+          <button onClick={() => onMoveEx("down")} disabled={exIdx === totalEjercicios - 1} style={{ ...stepperBtn, width: 22, height: 22, opacity: exIdx === totalEjercicios - 1 ? 0.3 : 1 }}>dn</button>
+          <button onClick={onRemoveEx} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 15, lineHeight: 1, padding: "0 0 0 4px" }}>x</button>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 5, gap: 8 }}>
+        <span style={{ fontSize: 10, color: "var(--pg-muted)", flex: 1 }}>{isRirMode ? "RIR por ronda" : "PESO (kg) por ronda"}</span>
+        <div style={{ display: "flex", background: "var(--pg-surface)", borderRadius: 6, border: "1px solid var(--pg-border)", overflow: "hidden" }}>
+          <button onClick={onToggleExPesoTipo} style={{ padding: "2px 7px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "transparent" : "var(--pg-accent)", color: isRirMode ? "var(--pg-muted)" : "var(--pg-accent-text)", borderRadius: 5 }}>kg</button>
+          <button onClick={onToggleExPesoTipo} style={{ padding: "2px 7px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "var(--pg-accent)" : "transparent", color: isRirMode ? "var(--pg-accent-text)" : "var(--pg-muted)", borderRadius: 5 }}>RIR</button>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr", gap: 5, alignItems: "center" }}>
+        <span style={{ fontSize: 10, color: "var(--pg-muted)" }} />
+        <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>REPS</span>
+        <span style={{ fontSize: 10, textAlign: "center", color: isRirMode ? "var(--pg-accent)" : "var(--pg-muted)", fontWeight: isRirMode ? 700 : 400 }}>{isRirMode ? "RIR" : "PESO (kg)"}</span>
+        {ex.reps.map((rep, ri) => (
+          <React.Fragment key={ri}>
+            <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>R{ri + 1}</span>
+            <RepsPicker value={rep} onChange={(v) => onUpdateExRep(ri, v)} />
+            {isRirMode ? (
+              <input value={ex.rir![ri] ?? ""} onChange={(e) => onUpdateExRir(ri, e.target.value)} placeholder="0" type="number" style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center", background: "var(--pg-accent-bg)", color: "var(--pg-accent)", border: "1px solid var(--pg-accent)", fontWeight: 700 }} />
+            ) : (
+              <input value={ex.peso?.[ri] ?? ""} onChange={(e) => onUpdateExPeso(ri, e.target.value)} placeholder="&mdash;" style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center" }} />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+        <input value={ex.nota ?? ""} onChange={(e) => onUpdateExNota(e.target.value)} placeholder="Agregar nota..." style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "4px 7px", color: ex.nota ? "var(--pg-text)" : "var(--pg-muted)" }} />
+        <button onClick={onToggleExRpe} style={{ fontSize: 10, padding: "4px 9px", borderRadius: 5, border: `1px solid ${ex.rpe ? "var(--pg-blue)" : "var(--pg-border)"}`, background: ex.rpe ? "var(--pg-blue-dim)" : "transparent", color: ex.rpe ? "var(--pg-blue)" : "var(--pg-muted)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Pedir RPE</button>
+      </div>
+    </div>
+  );
+}
+
+// CircuitCard
 
 function CircuitCard({
   circ,
@@ -217,6 +220,8 @@ function CircuitCard({
   onRemoveEx,
   onUpdateExRep,
   onUpdateExPeso,
+  onUpdateExRir,
+  onToggleExPesoTipo,
   onUpdateExNota,
   onToggleExRpe,
 }: {
@@ -229,215 +234,56 @@ function CircuitCard({
   onRemoveEx: (exIdx: number) => void;
   onUpdateExRep: (exIdx: number, ri: number, v: string) => void;
   onUpdateExPeso: (exIdx: number, ri: number, v: string) => void;
+  onUpdateExRir: (exIdx: number, ri: number, v: string) => void;
+  onToggleExPesoTipo: (exIdx: number) => void;
   onUpdateExNota: (exIdx: number, v: string) => void;
   onToggleExRpe: (exIdx: number) => void;
 }) {
   return (
-    <div
-      style={{
-        border: "1px solid rgba(124,58,237,0.3)",
-        borderRadius: 10,
-        padding: 12,
-        marginTop: 8,
-        background: "rgba(124,58,237,0.04)",
-      }}
-    >
-      {/* Header */}
+    <div style={{ border: "1px solid rgba(124,58,237,0.3)", borderRadius: 10, padding: 12, marginTop: 8, background: "rgba(124,58,237,0.04)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 700,
-            padding: "2px 6px",
-            borderRadius: 4,
-            background: "var(--pg-purple-dim)",
-            color: "var(--pg-purple)",
-            letterSpacing: 0.5,
-            flexShrink: 0,
-          }}
-        >
-          CIRCUITO
-        </span>
-        <input
-          value={circ.nombre}
-          onChange={(e) => onUpdate("nombre", e.target.value)}
-          placeholder="Nombre del circuito"
-          style={{ ...inputStyle, flex: 1 }}
-        />
-        <button
-          onClick={onToggleRpe}
-          style={{
-            fontSize: 10,
-            padding: "4px 9px",
-            borderRadius: 5,
-            border: `1px solid ${circ.rpe ? "var(--pg-blue)" : "rgba(124,58,237,0.3)"}`,
-            background: circ.rpe ? "var(--pg-blue-dim)" : "transparent",
-            color: circ.rpe ? "var(--pg-blue)" : "#C4B5FD",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-        >
-          Pedir RPE
-        </button>
-        <button
-          onClick={onRemove}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: 0, flexShrink: 0 }}
-        >
-          ×
-        </button>
+        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "var(--pg-purple-dim)", color: "var(--pg-purple)", letterSpacing: 0.5, flexShrink: 0 }}>CIRCUITO</span>
+        <input value={circ.nombre} onChange={(e) => onUpdate("nombre", e.target.value)} placeholder="Nombre del circuito" style={{ ...inputStyle, flex: 1 }} />
+        <button onClick={onToggleRpe} style={{ fontSize: 10, padding: "4px 9px", borderRadius: 5, border: `1px solid ${circ.rpe ? "var(--pg-blue)" : "rgba(124,58,237,0.3)"}`, background: circ.rpe ? "var(--pg-blue-dim)" : "transparent", color: circ.rpe ? "var(--pg-blue)" : "#C4B5FD", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>Pedir RPE</button>
+        <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 17, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>
       </div>
-
-      {/* Rounds + descanso */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>Series</span>
-          <button style={stepperBtn} onClick={() => onUpdate("rondas", Math.max(1, circ.rondas - 1))}>
-            −
-          </button>
-          <span style={{ width: 20, textAlign: "center", fontSize: 13, color: "var(--pg-text)" }}>
-            {circ.rondas}
-          </span>
-          <button style={stepperBtn} onClick={() => onUpdate("rondas", Math.min(10, circ.rondas + 1))}>
-            +
-          </button>
+          <button style={stepperBtn} onClick={() => onUpdate("rondas", Math.max(1, circ.rondas - 1))}>-</button>
+          <span style={{ width: 20, textAlign: "center", fontSize: 13, color: "var(--pg-text)" }}>{circ.rondas}</span>
+          <button style={stepperBtn} onClick={() => onUpdate("rondas", Math.min(10, circ.rondas + 1))}>+</button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
           <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>Descanso</span>
-          <select
-            value={circ.descanso}
-            onChange={(e) => onUpdate("descanso", e.target.value)}
-            style={{
-              background: "var(--pg-surface)",
-              border: "1px solid var(--pg-border)",
-              borderRadius: 6,
-              padding: "4px 8px",
-              color: "var(--pg-text)",
-              fontSize: 12,
-              outline: "none",
-              cursor: "pointer",
-            }}
-          >
-            {DESCANSO_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
+          <select value={circ.descanso} onChange={(e) => onUpdate("descanso", e.target.value)} style={{ background: "var(--pg-surface)", border: "1px solid var(--pg-border)", borderRadius: 6, padding: "4px 8px", color: "var(--pg-text)", fontSize: 12, outline: "none", cursor: "pointer" }}>
+            {DESCANSO_OPTIONS.map((d) => (<option key={d} value={d}>{d}</option>))}
           </select>
         </div>
       </div>
-
-      {/* Circuit exercises */}
       {circ.ejercicios.map((ex, exIdx) => (
-        <div
+        <CircuitExerciseRow
           key={exIdx}
-          style={{
-            background: "var(--pg-bg)",
-            borderRadius: 8,
-            padding: 10,
-            marginBottom: 6,
-            border: "1px solid var(--pg-border)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{ex.nombre}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <button
-                onClick={() => onMoveEx(exIdx, "up")}
-                disabled={exIdx === 0}
-                style={{ ...stepperBtn, width: 22, height: 22, opacity: exIdx === 0 ? 0.3 : 1 }}
-              >
-                ↑
-              </button>
-              <button
-                onClick={() => onMoveEx(exIdx, "down")}
-                disabled={exIdx === circ.ejercicios.length - 1}
-                style={{ ...stepperBtn, width: 22, height: 22, opacity: exIdx === circ.ejercicios.length - 1 ? 0.3 : 1 }}
-              >
-                ↓
-              </button>
-              <button
-                onClick={() => onRemoveEx(exIdx)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 15, lineHeight: 1, padding: "0 0 0 4px" }}
-              >
-                ×
-              </button>
-            </div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "32px 1fr 1fr",
-              gap: 5,
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: 10, color: "var(--pg-muted)" }} />
-            <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>REPS</span>
-            <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>PESO (kg)</span>
-            {ex.reps.map((rep, ri) => (
-              <React.Fragment key={ri}>
-                <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>R{ri + 1}</span>
-                <RepsPicker value={rep} onChange={(v) => onUpdateExRep(exIdx, ri, v)} />
-                <input
-                  value={ex.peso?.[ri] ?? ""}
-                  onChange={(e) => onUpdateExPeso(exIdx, ri, e.target.value)}
-                  placeholder="—"
-                  style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center" }}
-                />
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* Note + RPE toggle */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-            <input
-              value={ex.nota ?? ""}
-              onChange={(e) => onUpdateExNota(exIdx, e.target.value)}
-              placeholder="Agregar nota..."
-              style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "4px 7px", color: ex.nota ? "var(--pg-text)" : "var(--pg-muted)" }}
-            />
-            <button
-              onClick={() => onToggleExRpe(exIdx)}
-              style={{
-                fontSize: 10,
-                padding: "4px 9px",
-                borderRadius: 5,
-                border: `1px solid ${ex.rpe ? "var(--pg-blue)" : "var(--pg-border)"}`,
-                background: ex.rpe ? "var(--pg-blue-dim)" : "transparent",
-                color: ex.rpe ? "var(--pg-blue)" : "var(--pg-muted)",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
-              Pedir RPE
-            </button>
-          </div>
-        </div>
+          ex={ex}
+          exIdx={exIdx}
+          rondas={circ.rondas}
+          totalEjercicios={circ.ejercicios.length}
+          onMoveEx={(dir) => onMoveEx(exIdx, dir)}
+          onRemoveEx={() => onRemoveEx(exIdx)}
+          onUpdateExRep={(ri, v) => onUpdateExRep(exIdx, ri, v)}
+          onUpdateExPeso={(ri, v) => onUpdateExPeso(exIdx, ri, v)}
+          onUpdateExRir={(ri, v) => onUpdateExRir(exIdx, ri, v)}
+          onToggleExPesoTipo={() => onToggleExPesoTipo(exIdx)}
+          onUpdateExNota={(v) => onUpdateExNota(exIdx, v)}
+          onToggleExRpe={() => onToggleExRpe(exIdx)}
+        />
       ))}
-
-      <button
-        onClick={onOpenExPicker}
-        style={{
-          width: "100%",
-          padding: "8px 0",
-          borderRadius: 8,
-          border: "1px solid rgba(124,58,237,0.3)",
-          background: "transparent",
-          color: "#C4B5FD",
-          fontSize: 12,
-          cursor: "pointer",
-          marginTop: 4,
-        }}
-      >
-        + Agregar ejercicio al circuito
-      </button>
+      <button onClick={onOpenExPicker} style={{ width: "100%", padding: "8px 0", borderRadius: 8, border: "1px solid rgba(124,58,237,0.3)", background: "transparent", color: "#C4B5FD", fontSize: 12, cursor: "pointer", marginTop: 4 }}>+ Agregar ejercicio al circuito</button>
     </div>
   );
 }
 
-// ─── DayCard ──────────────────────────────────────────────────────────────
+// DayCard
 
 function DayCard({
   day,
@@ -453,6 +299,8 @@ function DayCard({
   onUpdateSeries,
   onUpdateRep,
   onUpdatePeso,
+  onUpdateRir,
+  onTogglePesoTipo,
   onUpdateNota,
   onToggleRpe,
   onOpenExPicker,
@@ -465,6 +313,8 @@ function DayCard({
   onRemoveCircuitEx,
   onUpdateCircuitExRep,
   onUpdateCircuitExPeso,
+  onUpdateCircuitExRir,
+  onToggleCircuitExPesoTipo,
   onUpdateCircuitExNota,
   onToggleCircuitExRpe,
   onToggleCircuitRpe,
@@ -482,6 +332,8 @@ function DayCard({
   onUpdateSeries: (exIdx: number, v: number) => void;
   onUpdateRep: (exIdx: number, si: number, v: string) => void;
   onUpdatePeso: (exIdx: number, si: number, v: string) => void;
+  onUpdateRir: (exIdx: number, si: number, v: string) => void;
+  onTogglePesoTipo: (exIdx: number) => void;
   onUpdateNota: (exIdx: number, v: string) => void;
   onToggleRpe: (exIdx: number) => void;
   onOpenExPicker: () => void;
@@ -494,6 +346,8 @@ function DayCard({
   onRemoveCircuitEx: (circIdx: number, exIdx: number) => void;
   onUpdateCircuitExRep: (circIdx: number, exIdx: number, ri: number, v: string) => void;
   onUpdateCircuitExPeso: (circIdx: number, exIdx: number, ri: number, v: string) => void;
+  onUpdateCircuitExRir: (circIdx: number, exIdx: number, ri: number, v: string) => void;
+  onToggleCircuitExPesoTipo: (circIdx: number, exIdx: number) => void;
   onUpdateCircuitExNota: (circIdx: number, exIdx: number, v: string) => void;
   onToggleCircuitExRpe: (circIdx: number, exIdx: number) => void;
   onToggleCircuitRpe: (circIdx: number) => void;
@@ -501,70 +355,31 @@ function DayCard({
   const circuits = day.circuitos ?? [];
 
   return (
-    <div
-      style={{
-        background: "var(--pg-card)",
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 10,
-        border: `1px solid ${isEditing ? "var(--pg-accent)" : "var(--pg-border)"}`,
-      }}
-    >
-      {/* Header */}
+    <div style={{ background: "var(--pg-card)", borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${isEditing ? "var(--pg-accent)" : "var(--pg-border)"}` }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button
-          onClick={onToggleEdit}
-          style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", flex: 1, padding: 0 }}
-        >
+        <button onClick={onToggleEdit} style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", flex: 1, padding: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pg-text)" }}>
-            {day.dia || `Día ${dayIdx + 1}`}
-            {day.enfoque && (
-              <span style={{ color: "var(--pg-accent)", fontWeight: 400 }}> · {day.enfoque}</span>
-            )}
+            {day.dia || `Dia ${dayIdx + 1}`}
+            {day.enfoque && <span style={{ color: "var(--pg-accent)", fontWeight: 400 }}> - {day.enfoque}</span>}
           </div>
           <div style={{ fontSize: 11, color: "var(--pg-muted)", marginTop: 2 }}>
             {day.ejercicios.length} ejercicio{day.ejercicios.length !== 1 ? "s" : ""}
-            {circuits.length > 0 &&
-              ` · ${circuits.length} circuito${circuits.length !== 1 ? "s" : ""}`}
+            {circuits.length > 0 && ` - ${circuits.length} circuito${circuits.length !== 1 ? "s" : ""}`}
           </div>
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <button
-            onClick={onDuplicate}
-            title="Duplicar día"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: "0 6px", fontSize: 14, lineHeight: 1 }}
-          >
-            ⧉
-          </button>
+          <button onClick={onDuplicate} title="Duplicar dia" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", padding: "0 6px", fontSize: 14, lineHeight: 1 }}>D</button>
           {canRemove && (
-            <button
-              onClick={onRemove}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 18, padding: "0 0 0 6px" }}
-            >
-              ×
-            </button>
+            <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-red)", fontSize: 18, padding: "0 0 0 6px" }}>x</button>
           )}
         </div>
       </div>
-
-      {/* Expanded content */}
       {isEditing && (
         <div style={{ marginTop: 12 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input
-              value={day.dia}
-              onChange={(e) => onUpdateField("dia", e.target.value)}
-              placeholder="Nombre del día"
-              style={inputStyle}
-            />
-            <input
-              value={day.enfoque}
-              onChange={(e) => onUpdateField("enfoque", e.target.value)}
-              placeholder="Enfoque"
-              style={inputStyle}
-            />
+            <input value={day.dia} onChange={(e) => onUpdateField("dia", e.target.value)} placeholder="Nombre del dia" style={inputStyle} />
+            <input value={day.enfoque} onChange={(e) => onUpdateField("enfoque", e.target.value)} placeholder="Enfoque" style={inputStyle} />
           </div>
-
           {day.ejercicios.map((ej, exIdx) => (
             <ExerciseRow
               key={exIdx}
@@ -574,6 +389,8 @@ function DayCard({
               onUpdateSeries={(v) => onUpdateSeries(exIdx, v)}
               onUpdateRep={(si, v) => onUpdateRep(exIdx, si, v)}
               onUpdatePeso={(si, v) => onUpdatePeso(exIdx, si, v)}
+              onUpdateRir={(si, v) => onUpdateRir(exIdx, si, v)}
+              onTogglePesoTipo={() => onTogglePesoTipo(exIdx)}
               onUpdateNota={(v) => onUpdateNota(exIdx, v)}
               onToggleRpe={() => onToggleRpe(exIdx)}
               onMove={(dir) => onMoveExercise(exIdx, dir)}
@@ -581,24 +398,7 @@ function DayCard({
               canMoveDown={exIdx < day.ejercicios.length - 1}
             />
           ))}
-
-          <button
-            onClick={onOpenExPicker}
-            style={{
-              width: "100%",
-              padding: "9px 0",
-              borderRadius: 8,
-              border: "1px solid var(--pg-border)",
-              background: "transparent",
-              color: "var(--pg-accent)",
-              fontSize: 13,
-              cursor: "pointer",
-              marginTop: 4,
-            }}
-          >
-            + Agregar ejercicio
-          </button>
-
+          <button onClick={onOpenExPicker} style={{ width: "100%", padding: "9px 0", borderRadius: 8, border: "1px solid var(--pg-border)", background: "transparent", color: "var(--pg-accent)", fontSize: 13, cursor: "pointer", marginTop: 4 }}>+ Agregar ejercicio</button>
           {circuits.map((circ, circIdx) => (
             <CircuitCard
               key={circIdx}
@@ -611,34 +411,20 @@ function DayCard({
               onRemoveEx={(exIdx) => onRemoveCircuitEx(circIdx, exIdx)}
               onUpdateExRep={(exIdx, ri, v) => onUpdateCircuitExRep(circIdx, exIdx, ri, v)}
               onUpdateExPeso={(exIdx, ri, v) => onUpdateCircuitExPeso(circIdx, exIdx, ri, v)}
+              onUpdateExRir={(exIdx, ri, v) => onUpdateCircuitExRir(circIdx, exIdx, ri, v)}
+              onToggleExPesoTipo={(exIdx) => onToggleCircuitExPesoTipo(circIdx, exIdx)}
               onUpdateExNota={(exIdx, v) => onUpdateCircuitExNota(circIdx, exIdx, v)}
               onToggleExRpe={(exIdx) => onToggleCircuitExRpe(circIdx, exIdx)}
             />
           ))}
-
-          <button
-            onClick={onAddCircuit}
-            style={{
-              width: "100%",
-              padding: "9px 0",
-              borderRadius: 8,
-              border: "1px solid rgba(124,58,237,0.3)",
-              background: "transparent",
-              color: "#C4B5FD",
-              fontSize: 13,
-              cursor: "pointer",
-              marginTop: 8,
-            }}
-          >
-            + Crear circuito
-          </button>
+          <button onClick={onAddCircuit} style={{ width: "100%", padding: "9px 0", borderRadius: 8, border: "1px solid rgba(124,58,237,0.3)", background: "transparent", color: "#C4B5FD", fontSize: 13, cursor: "pointer", marginTop: 8 }}>+ Crear circuito</button>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Main Modal ───────────────────────────────────────────────────────────
+// Main Modal
 
 type Props = ReturnType<typeof useRoutineCreator> & { clubId: string };
 
@@ -671,6 +457,8 @@ export default function RoutineCreatorModal({
   updateExerciseSeries,
   updateExerciseRep,
   updateExercisePeso,
+  updateExerciseRir,
+  toggleExercisePesoTipo,
   updateExerciseNota,
   toggleExerciseRpe,
   removeExercise,
@@ -681,6 +469,8 @@ export default function RoutineCreatorModal({
   removeCircuit,
   updateCircuitExRep,
   updateCircuitExPeso,
+  updateCircuitExRir,
+  toggleCircuitExPesoTipo,
   updateCircuitExNota,
   toggleCircuitRpe,
   toggleCircuitExRpe,
@@ -696,164 +486,44 @@ export default function RoutineCreatorModal({
   const canSave =
     !!newRoutineName.trim() &&
     newDays.length > 0 &&
-    newDays.some(
-      (d) =>
-        d.ejercicios.length > 0 ||
-        (d.circuitos ?? []).some((c) => c.ejercicios.length > 0),
-    );
+    newDays.some((d) => d.ejercicios.length > 0 || (d.circuitos ?? []).some((c) => c.ejercicios.length > 0));
 
   if (!createVisible) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        style={{
-          background: "var(--pg-bg)",
-          borderRadius: 16,
-          border: "1px solid var(--pg-border)",
-          width: "min(760px, 96vw)",
-          height: "min(90vh, 920px)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: "18px 22px 16px",
-            borderBottom: "1px solid var(--pg-border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 18, fontWeight: 700, color: "var(--pg-text)" }}>
-            {isEditing ? "Editar rutina" : "Crear rutina"}
-          </span>
-          <button
-            onClick={closeCreateRoutine}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", fontSize: 14 }}
-          >
-            Cancelar
-          </button>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "var(--pg-bg)", borderRadius: 16, border: "1px solid var(--pg-border)", width: "min(760px, 96vw)", height: "min(90vh, 920px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "18px 22px 16px", borderBottom: "1px solid var(--pg-border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "var(--pg-text)" }}>{isEditing ? "Editar rutina" : "Crear rutina"}</span>
+          <button onClick={closeCreateRoutine} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pg-muted)", fontSize: 14 }}>Cancelar</button>
         </div>
-
-        {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 22px 24px" }}>
-          {/* Name */}
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 1,
-              color: "var(--pg-muted)",
-              marginBottom: 8,
-            }}
-          >
-            NOMBRE DE LA RUTINA
-          </div>
-          <input
-            value={newRoutineName}
-            onChange={(e) => setNewRoutineName(e.target.value)}
-            placeholder="Ej: Push Pull Legs"
-            style={{ ...inputStyle, marginBottom: 22, fontSize: 15, padding: "11px 13px" }}
-          />
-
-          {/* Type */}
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 1,
-              color: "var(--pg-muted)",
-              marginBottom: 8,
-            }}
-          >
-            TIPO DE RUTINA
-          </div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "var(--pg-muted)", marginBottom: 8 }}>NOMBRE DE LA RUTINA</div>
+          <input value={newRoutineName} onChange={(e) => setNewRoutineName(e.target.value)} placeholder="Ej: Push Pull Legs" style={{ ...inputStyle, marginBottom: 22, fontSize: 15, padding: "11px 13px" }} />
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "var(--pg-muted)", marginBottom: 8 }}>TIPO DE RUTINA</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
             {ROUTINE_TYPES.map(({ value, label }) => {
               const active = newRoutineType === value;
               return (
-                <button
-                  key={value}
-                  onClick={() => changeRoutineType(value)}
-                  style={{
-                    flex: 1,
-                    paddingTop: 10,
-                    paddingBottom: 10,
-                    borderRadius: 10,
-                    border: `1.5px solid ${active ? "var(--pg-accent)" : "var(--pg-border)"}`,
-                    background: active ? "var(--pg-accent-bg)" : "var(--pg-card)",
-                    color: active ? "var(--pg-accent)" : "var(--pg-muted)",
-                    fontWeight: active ? 700 : 400,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
+                <button key={value} onClick={() => changeRoutineType(value)} style={{ flex: 1, paddingTop: 10, paddingBottom: 10, borderRadius: 10, border: `1.5px solid ${active ? "var(--pg-accent)" : "var(--pg-border)"}`, background: active ? "var(--pg-accent-bg)" : "var(--pg-card)", color: active ? "var(--pg-accent)" : "var(--pg-muted)", fontWeight: active ? 700 : 400, fontSize: 13, cursor: "pointer" }}>
                   {label}
                 </button>
               );
             })}
           </div>
-
-          {/* RPE prompt */}
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "var(--pg-muted)", marginBottom: 8 }}>
-            REGISTRO DE ESFUERZO (RPE)
-          </div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "var(--pg-muted)", marginBottom: 8 }}>REGISTRO DE ESFUERZO (RPE)</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
             {RPE_OPTIONS.map(({ value, label, desc }) => {
               const active = rpePrompt === value;
               return (
-                <button
-                  key={value}
-                  onClick={() => changeRpePrompt(value)}
-                  style={{
-                    flex: 1,
-                    padding: "10px 8px",
-                    borderRadius: 10,
-                    border: `1.5px solid ${active ? "var(--pg-blue)" : "var(--pg-border)"}`,
-                    background: active ? "var(--pg-blue-dim)" : "var(--pg-card)",
-                    cursor: "pointer",
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: active ? 700 : 400, color: active ? "var(--pg-blue)" : "var(--pg-muted)", marginBottom: 3 }}>
-                    {label}
-                  </div>
-                  <div style={{ fontSize: 10, color: active ? "var(--pg-blue)" : "var(--pg-disabled)", lineHeight: 1.3 }}>
-                    {desc}
-                  </div>
+                <button key={value} onClick={() => changeRpePrompt(value)} style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: `1.5px solid ${active ? "var(--pg-blue)" : "var(--pg-border)"}`, background: active ? "var(--pg-blue-dim)" : "var(--pg-card)", cursor: "pointer", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, fontWeight: active ? 700 : 400, color: active ? "var(--pg-blue)" : "var(--pg-muted)", marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 10, color: active ? "var(--pg-blue)" : "var(--pg-disabled)", lineHeight: 1.3 }}>{desc}</div>
                 </button>
               );
             })}
           </div>
-
-          {/* Days */}
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 1,
-              color: "var(--pg-muted)",
-              marginBottom: 12,
-            }}
-          >
-            DÍAS ({newDays.length})
-          </div>
-
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "var(--pg-muted)", marginBottom: 12 }}>DIAS ({newDays.length})</div>
           {newDays.map((day, dayIdx) => (
             <DayCard
               key={dayIdx}
@@ -870,6 +540,8 @@ export default function RoutineCreatorModal({
               onUpdateSeries={(exIdx, v) => updateExerciseSeries(dayIdx, exIdx, v)}
               onUpdateRep={(exIdx, si, v) => updateExerciseRep(dayIdx, exIdx, si, v)}
               onUpdatePeso={(exIdx, si, v) => updateExercisePeso(dayIdx, exIdx, si, v)}
+              onUpdateRir={(exIdx, si, v) => updateExerciseRir(dayIdx, exIdx, si, v)}
+              onTogglePesoTipo={(exIdx) => toggleExercisePesoTipo(dayIdx, exIdx)}
               onUpdateNota={(exIdx, v) => updateExerciseNota(dayIdx, exIdx, v)}
               onToggleRpe={(exIdx) => toggleExerciseRpe(dayIdx, exIdx)}
               onOpenExPicker={() => openExPickerForDay(dayIdx)}
@@ -880,104 +552,32 @@ export default function RoutineCreatorModal({
               onOpenCircuitExPicker={(circIdx) => openCircuitExPicker(dayIdx, circIdx)}
               onMoveCircuitEx={(circIdx, exIdx, dir) => moveCircuitEx(dayIdx, circIdx, exIdx, dir)}
               onRemoveCircuitEx={(circIdx, exIdx) => removeCircuitEx(dayIdx, circIdx, exIdx)}
-              onUpdateCircuitExRep={(circIdx, exIdx, ri, v) =>
-                updateCircuitExRep(dayIdx, circIdx, exIdx, ri, v)
-              }
-              onUpdateCircuitExPeso={(circIdx, exIdx, ri, v) =>
-                updateCircuitExPeso(dayIdx, circIdx, exIdx, ri, v)
-              }
-              onUpdateCircuitExNota={(circIdx, exIdx, v) =>
-                updateCircuitExNota(dayIdx, circIdx, exIdx, v)
-              }
-              onToggleCircuitExRpe={(circIdx, exIdx) =>
-                toggleCircuitExRpe(dayIdx, circIdx, exIdx)
-              }
+              onUpdateCircuitExRep={(circIdx, exIdx, ri, v) => updateCircuitExRep(dayIdx, circIdx, exIdx, ri, v)}
+              onUpdateCircuitExPeso={(circIdx, exIdx, ri, v) => updateCircuitExPeso(dayIdx, circIdx, exIdx, ri, v)}
+              onUpdateCircuitExRir={(circIdx, exIdx, ri, v) => updateCircuitExRir(dayIdx, circIdx, exIdx, ri, v)}
+              onToggleCircuitExPesoTipo={(circIdx, exIdx) => toggleCircuitExPesoTipo(dayIdx, circIdx, exIdx)}
+              onUpdateCircuitExNota={(circIdx, exIdx, v) => updateCircuitExNota(dayIdx, circIdx, exIdx, v)}
+              onToggleCircuitExRpe={(circIdx, exIdx) => toggleCircuitExRpe(dayIdx, circIdx, exIdx)}
               onToggleCircuitRpe={(circIdx) => toggleCircuitRpe(dayIdx, circIdx)}
             />
           ))}
-
           {newRoutineType !== "daily" && (
-            <button
-              onClick={addDay}
-              style={{
-                width: "100%",
-                padding: "12px 0",
-                borderRadius: 12,
-                border: "1px solid var(--pg-border)",
-                background: "transparent",
-                color: "var(--pg-accent)",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              + Agregar día
-            </button>
+            <button onClick={addDay} style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "1px solid var(--pg-border)", background: "transparent", color: "var(--pg-accent)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>+ Agregar dia</button>
           )}
         </div>
-
-        {/* Footer */}
         {(canSave || saveError) && (
-          <div
-            style={{
-              padding: "14px 22px",
-              borderTop: "1px solid var(--pg-border)",
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 12,
-            }}
-          >
-            {saveError && (
-              <span style={{ fontSize: 12, color: "var(--pg-red)", flex: 1 }}>
-                {saveError}
-              </span>
-            )}
+          <div style={{ padding: "14px 22px", borderTop: "1px solid var(--pg-border)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+            {saveError && <span style={{ fontSize: 12, color: "var(--pg-red)", flex: 1 }}>{saveError}</span>}
             {canSave && (
-              <button
-                onClick={saveRoutine}
-                disabled={savingRoutine}
-                style={{
-                  padding: "12px 32px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: "var(--pg-accent)",
-                  color: "var(--pg-accent-text)",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  cursor: savingRoutine ? "default" : "pointer",
-                  opacity: savingRoutine ? 0.7 : 1,
-                  flexShrink: 0,
-                }}
-              >
+              <button onClick={saveRoutine} disabled={savingRoutine} style={{ padding: "12px 32px", borderRadius: 12, border: "none", background: "var(--pg-accent)", color: "var(--pg-accent-text)", fontWeight: 700, fontSize: 14, cursor: savingRoutine ? "default" : "pointer", opacity: savingRoutine ? 0.7 : 1, flexShrink: 0 }}>
                 {savingRoutine ? "Guardando..." : isEditing ? "Guardar cambios" : "Guardar rutina"}
               </button>
             )}
           </div>
         )}
       </div>
-
-      {/* Exercise pickers render above the modal panel via higher z-index */}
-      <ExercisePicker
-        visible={exPickerVisible}
-        onClose={() => setExPickerVisible(false)}
-        onSelectMultiple={pickExercises}
-        library={library}
-        loading={loadingLibrary}
-        title="Elegir ejercicios"
-        clubId={clubId}
-      />
-
-      <ExercisePicker
-        visible={circuitExPickerVisible}
-        onClose={() => setCircuitExPickerVisible(false)}
-        onSelectMultiple={pickCircuitExercises}
-        library={library}
-        loading={loadingLibrary}
-        title="Elegir ejercicios para circuito"
-        clubId={clubId}
-      />
+      <ExercisePicker visible={exPickerVisible} onClose={() => setExPickerVisible(false)} onSelectMultiple={pickExercises} library={library} loading={loadingLibrary} title="Elegir ejercicios" clubId={clubId} />
+      <ExercisePicker visible={circuitExPickerVisible} onClose={() => setCircuitExPickerVisible(false)} onSelectMultiple={pickCircuitExercises} library={library} loading={loadingLibrary} title="Elegir ejercicios para circuito" clubId={clubId} />
     </div>
   );
 }
