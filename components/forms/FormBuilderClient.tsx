@@ -401,7 +401,7 @@ function DistributionPanel({ formId, groups, players, distributions, onUpdate }:
   };
 
   const getTargetLabel = (d: ClubFormDistribution) => {
-    const id = d.target_group_id ?? d.target_user_id ?? "";
+    const id = d.target_id;
     if (d.target_type === "group") return groups.find((g) => g.id === id)?.name ?? id;
     return players.find((p) => p.id === id)?.name ?? id;
   };

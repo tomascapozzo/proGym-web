@@ -37,13 +37,15 @@ async function enrollPlayers(
 ) {
   if (playerIds.length === 0) return;
 
-  // Archive any currently active coach-assigned enrollment for these players
+  // Archive any active coach-assigned enrollment for these players in OTHER routines
+  // (each player should only have one active club routine at a time)
   await supabase
     .from("routine_enrollments")
     .update({ status: "past" })
     .in("user_id", playerIds)
     .not("source_share_id", "is", null)
-    .eq("status", "active");
+    .eq("status", "active")
+    .neq("routine_id", routineId);
 
   // Enroll in the new routine — upsert in case a past enrollment already exists
   // (ON CONFLICT resets progress and re-activates it)

@@ -5,6 +5,7 @@ import { getCurrentMembership } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import Topbar from "@/components/dashboard/Topbar";
 import ShareGroupsPanel from "@/components/routines/ShareGroupsPanel";
+import DayCard from "@/components/routines/DayCard";
 import type { RoutineDay } from "@/types/routine";
 
 const TYPE_LABELS: Record<string, string> = { daily: "Diaria", weekly: "Semanal", monthly: "Mensual" };
@@ -102,7 +103,6 @@ export default async function RoutineDetailPage({ params }: Props) {
         .from("club_groups")
         .select("id, name")
         .eq("club_id", club.id)
-        .eq("kind", "training")
         .order("name"),
       supabase
         .from("routine_shares")
@@ -137,8 +137,6 @@ export default async function RoutineDetailPage({ params }: Props) {
   const progress = routine.progress as { completed_days: number[]; skipped_days?: number[] } | null;
   const completedDays = progress?.completed_days ?? [];
 
-  const EX_COL = "28px 1fr 60px 72px 60px";
-
   return (
     <>
       <Topbar
@@ -165,70 +163,9 @@ export default async function RoutineDetailPage({ params }: Props) {
 
         {/* Left: days and exercises */}
         <div style={{ overflowY: "auto", padding: "16px 12px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-          {dias.map((day, i) => {
-            const isDone = completedDays.includes(i);
-            return (
-              <div key={i} style={{ background: "var(--pg-card)", border: `1px solid ${isDone ? "rgba(74,222,128,0.2)" : "var(--pg-border)"}`, borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ padding: "9px 14px", borderBottom: "1px solid var(--pg-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>{day.dia || `Día ${i + 1}`}</span>
-                    {day.enfoque && (
-                      <span style={{ fontSize: 10, color: "var(--pg-muted)", marginLeft: 8 }}>{day.enfoque}</span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>
-                      {(day.ejercicios?.length ?? 0) + (day.circuitos?.reduce((s, c) => s + (c.ejercicios?.length ?? 0), 0) ?? 0)} ejercicios
-                    </span>
-                    {isDone && (
-                      <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(74,222,128,0.15)", color: "var(--pg-green)" }}>
-                        Completado
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Direct exercises */}
-                {(day.ejercicios?.length ?? 0) > 0 && (
-                  <>
-                    <div style={{ display: "grid", gridTemplateColumns: EX_COL, padding: "5px 14px", borderBottom: "1px solid var(--pg-border)", background: "rgba(0,0,0,0.2)" }}>
-                      {["#", "Ejercicio", "Series", "Reps", "Descanso"].map(h => (
-                        <span key={h} style={{ fontSize: 8, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", fontWeight: 500 }}>{h}</span>
-                      ))}
-                    </div>
-                    {day.ejercicios!.map((ex, j) => (
-                      <div key={j} className="pg-row" style={{ display: "grid", gridTemplateColumns: EX_COL, padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.03)", alignItems: "center" }}>
-                        <span style={{ fontSize: 10, color: "var(--pg-disabled)", fontVariantNumeric: "tabular-nums" }}>{j + 1}</span>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pg-text)" }}>{ex.nombre}</span>
-                        <span style={{ fontSize: 11, color: "var(--pg-muted)", fontVariantNumeric: "tabular-nums" }}>{ex.series}</span>
-                        <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>{ex.reps?.join(" / ") || "—"}</span>
-                        <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>{ex.descanso}</span>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {/* Circuits */}
-                {day.circuitos?.map((circuit, ci) => (
-                  <div key={ci}>
-                    <div style={{ padding: "7px 14px", background: "rgba(0,0,0,0.15)", borderBottom: "1px solid var(--pg-border)", display: "flex", gap: 10, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--pg-blue)" }}>{circuit.nombre || `Circuito ${ci + 1}`}</span>
-                      <span style={{ fontSize: 9, color: "var(--pg-muted)" }}>{circuit.rondas} rondas · {circuit.descanso} descanso</span>
-                    </div>
-                    {circuit.ejercicios?.map((ex, ei) => (
-                      <div key={ei} className="pg-row" style={{ display: "grid", gridTemplateColumns: EX_COL, padding: "7px 14px 7px 28px", borderBottom: "1px solid rgba(255,255,255,0.03)", alignItems: "center" }}>
-                        <span style={{ fontSize: 10, color: "var(--pg-disabled)", fontVariantNumeric: "tabular-nums" }}>{ei + 1}</span>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pg-text)" }}>{ex.nombre}</span>
-                        <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>—</span>
-                        <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>{ex.reps?.join(" / ") || "—"}</span>
-                        <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>—</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+          {dias.map((day, i) => (
+            <DayCard key={i} day={day} index={i} isDone={completedDays.includes(i)} />
+          ))}
 
           {dias.length === 0 && (
             <div style={{ padding: 28, textAlign: "center", fontSize: 12, color: "var(--pg-muted)" }}>Esta rutina no tiene días configurados.</div>
@@ -265,37 +202,70 @@ export default async function RoutineDetailPage({ params }: Props) {
           </div>
 
           {/* Enrollment summary */}
-          <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
-            <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--pg-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>Jugadores asignados</span>
-              <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{enrollments.length}</span>
-            </div>
-            {enrollments.map(e => {
-              const completed = e.progress?.completed_days?.length ?? 0;
-              const pct = dias.length > 0 ? Math.round((completed / dias.length) * 100) : 0;
-              const statusColor = e.status === "active" ? "var(--pg-green)" : e.status === "pending_restart" ? "var(--pg-blue)" : "var(--pg-muted)";
-              const statusLabel = e.status === "active" ? "Activa" : e.status === "pending_restart" ? "Completada" : "Finalizada";
-              return (
-                <div key={e.user_id} className="pg-row" style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pg-text)" }}>{playerNameById.get(e.user_id) ?? "—"}</span>
-                    <span style={{ fontSize: 9, fontWeight: 600, color: statusColor }}>{statusLabel}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 2 }}>
-                    {dias.map((_, i) => (
-                      <div key={i} style={{ flex: 1, height: 3, background: (e.progress?.completed_days ?? []).includes(i) ? "var(--pg-accent)" : "var(--pg-surface)", borderRadius: 2 }} />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 9, color: "var(--pg-muted)", marginTop: 2, display: "block" }}>{completed}/{dias.length} días · {pct}%</span>
+          {(() => {
+            const activeEnrollments = enrollments.filter(e => e.status === "active" || e.status === "pending_restart");
+            const pastEnrollments   = enrollments.filter(e => e.status !== "active" && e.status !== "pending_restart");
+            return (
+              <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--pg-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>Jugadores asignados</span>
+                  <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>
+                    {activeEnrollments.length} activos{pastEnrollments.length > 0 ? ` · ${pastEnrollments.length} anteriores` : ""}
+                  </span>
                 </div>
-              );
-            })}
-            {enrollments.length === 0 && (
-              <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 11, color: "var(--pg-disabled)" }}>
-                Sin jugadores asignados.
+                {activeEnrollments.map(e => {
+                  const completed = e.progress?.completed_days?.length ?? 0;
+                  const pct = dias.length > 0 ? Math.round((completed / dias.length) * 100) : 0;
+                  const statusColor = e.status === "active" ? "var(--pg-green)" : "var(--pg-blue)";
+                  const statusLabel = e.status === "active" ? "Activa" : "Completada";
+                  return (
+                    <div key={e.user_id} className="pg-row" style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pg-text)" }}>{playerNameById.get(e.user_id) ?? "—"}</span>
+                        <span style={{ fontSize: 9, fontWeight: 600, color: statusColor }}>{statusLabel}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 2 }}>
+                        {dias.map((_, i) => (
+                          <div key={i} style={{ flex: 1, height: 3, background: (e.progress?.completed_days ?? []).includes(i) ? "var(--pg-accent)" : "var(--pg-surface)", borderRadius: 2 }} />
+                        ))}
+                      </div>
+                      <span style={{ fontSize: 9, color: "var(--pg-muted)", marginTop: 2, display: "block" }}>{completed}/{dias.length} días · {pct}%</span>
+                    </div>
+                  );
+                })}
+                {pastEnrollments.length > 0 && (
+                  <>
+                    <div style={{ padding: "4px 12px", background: "rgba(0,0,0,0.15)", borderTop: "1px solid var(--pg-border)", borderBottom: "1px solid var(--pg-border)" }}>
+                      <span style={{ fontSize: 8, letterSpacing: "1.2px", textTransform: "uppercase", color: "var(--pg-disabled)" }}>Anteriores</span>
+                    </div>
+                    {pastEnrollments.map(e => {
+                      const completed = e.progress?.completed_days?.length ?? 0;
+                      const pct = dias.length > 0 ? Math.round((completed / dias.length) * 100) : 0;
+                      return (
+                        <div key={e.user_id} style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)", opacity: 0.45 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pg-text)" }}>{playerNameById.get(e.user_id) ?? "—"}</span>
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "var(--pg-muted)" }}>Finalizada</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 2 }}>
+                            {dias.map((_, i) => (
+                              <div key={i} style={{ flex: 1, height: 3, background: (e.progress?.completed_days ?? []).includes(i) ? "var(--pg-accent)" : "var(--pg-surface)", borderRadius: 2 }} />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 9, color: "var(--pg-muted)", marginTop: 2, display: "block" }}>{completed}/{dias.length} días · {pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+                {enrollments.length === 0 && (
+                  <div style={{ padding: "16px 12px", textAlign: "center", fontSize: 11, color: "var(--pg-disabled)" }}>
+                    Sin jugadores asignados.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {isStaff && (
             <ShareGroupsPanel

@@ -59,8 +59,7 @@ export type ClubFormDistribution = {
   id: string;
   form_id: string;
   target_type: DistributionTargetType;
-  target_group_id: string | null;
-  target_user_id: string | null;
+  target_id: string;
   due_at: string | null;
   created_by: string;
   created_at: string;

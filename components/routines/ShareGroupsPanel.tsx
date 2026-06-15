@@ -83,12 +83,12 @@ export default function ShareGroupsPanel({
       {/* Groups card */}
       <div style={{ background: "var(--pg-card)", border: "1px solid var(--pg-border)", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--pg-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>Grupos de entrenamiento</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--pg-text)" }}>Grupos</span>
           <span style={{ fontSize: 10, color: "var(--pg-muted)" }}>{groupShares.length} activos</span>
         </div>
         {groups.length === 0 ? (
           <div style={{ padding: "16px 12px", fontSize: 11, color: "var(--pg-disabled)", textAlign: "center" }}>
-            No hay grupos de entrenamiento creados.
+            No hay grupos creados.
           </div>
         ) : (
           <div>

@@ -176,19 +176,16 @@ export async function distributeForm(
     .select("id")
     .eq("form_id", formId)
     .eq("target_type", targetType);
-  if (targetType === "group") dupQuery.eq("target_group_id", targetId);
-  else dupQuery.eq("target_user_id", targetId);
+  dupQuery.eq("target_id", targetId);
   const { data: existing } = await dupQuery.maybeSingle();
 
   if (existing) return { ok: false, error: "Este formulario ya fue enviado a ese destino." };
 
   const payload = {
     form_id: formId,
-    club_id: ctx.clubId,
-    distributed_by: ctx.user.id,
+    created_by: ctx.user.id,
     target_type: targetType,
-    target_group_id: targetType === "group" ? targetId : null,
-    target_user_id: targetType === "player" ? targetId : null,
+    target_id: targetId,
     due_at: dueAt || null,
   };
   console.log("[distributeForm] inserting:", JSON.stringify(payload));
@@ -223,20 +220,18 @@ export async function distributeFormToAllPlayers(
 
   const { data: existing } = await ctx.supabase
     .from("club_form_distributions")
-    .select("target_user_id")
+    .select("target_id")
     .eq("form_id", formId)
     .eq("target_type", "player");
 
-  const existingIds = new Set((existing ?? []).map((e) => e.target_user_id));
+  const existingIds = new Set((existing ?? []).map((e) => e.target_id));
   const toInsert = members
     .filter((m) => !existingIds.has(m.user_id))
     .map((m) => ({
       form_id: formId,
-      club_id: ctx.clubId,
-      distributed_by: ctx.user.id,
+      created_by: ctx.user.id,
       target_type: "player" as const,
-      target_group_id: null,
-      target_user_id: m.user_id,
+      target_id: m.user_id,
       due_at: dueAt || null,
     }));
 
