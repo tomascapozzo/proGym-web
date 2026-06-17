@@ -12,7 +12,6 @@ type RawRoutine = {
   user_id: string;
   data: ParsedData | string | null;
   type: string;
-  status: string;
 };
 
 type RawDay = {
@@ -59,9 +58,29 @@ export default async function RoutinesPage() {
   const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
   const { data: rawRoutines } = await supabase
     .from("routines")
-    .select("id, user_id, data, type, status")
+    .select("id, user_id, data, type")
     .in("user_id", staffIds.length ? staffIds : [PLACEHOLDER])
     .order("created_at", { ascending: false });
+
+  // Active/scheduled shares per routine — determines "shared" status in the UI
+  const routineIds = (rawRoutines ?? []).map(r => r.id);
+  const { data: sharesRaw } = routineIds.length
+    ? await supabase
+        .from("routine_shares")
+        .select("routine_id, status")
+        .in("routine_id", routineIds)
+        .in("status", ["active", "scheduled"])
+    : { data: [] };
+
+  // Build a map: routineId → highest-priority share status
+  const shareStatusById = new Map<string, "active" | "scheduled">();
+  for (const s of sharesRaw ?? []) {
+    const current = shareStatusById.get(s.routine_id);
+    // active > scheduled
+    if (!current || (current === "scheduled" && s.status === "active")) {
+      shareStatusById.set(s.routine_id, s.status as "active" | "scheduled");
+    }
+  }
 
   const routines: RoutineRow[] = ((rawRoutines ?? []) as unknown as RawRoutine[]).map((r) => {
     const parsed = parseData(r.data);
@@ -70,18 +89,20 @@ export default async function RoutinesPage() {
       id:             r.id,
       name:           parsed?.nombre || "Sin nombre",
       type:           (r.type as RoutineRow["type"]) || "daily",
-      status:         (r.status as RoutineRow["status"]) || "active",
+      shareStatus:    shareStatusById.get(r.id) ?? "none",
       daysCount:      dias.length,
       exercisesCount: countExercises(dias),
       ownerName:      nameByUserId.get(r.user_id) ?? "—",
     };
   });
 
+  const sharedCount = routines.filter(r => r.shareStatus === "active" || r.shareStatus === "scheduled").length;
+
   return (
     <>
       <Topbar
         title="Rutinas"
-        subtitle={`${routines.filter(r => r.status === "active").length} activas`}
+        subtitle={`${sharedCount} compartidas`}
       />
       <RoutinesTable routines={routines} clubId={club.id} />
     </>

@@ -34,6 +34,7 @@ async function enrollPlayers(
   routineId: string,
   shareId: string,
   playerIds: string[],
+  endsAt?: string | null,
 ) {
   if (playerIds.length === 0) return;
 
@@ -58,6 +59,7 @@ async function enrollPlayers(
         status: "active",
         progress: { completed_days: [] },
         source_share_id: shareId,
+        ends_at: endsAt ?? null,
       })),
       { onConflict: "routine_id,user_id" },
     );
@@ -67,7 +69,9 @@ async function enrollPlayers(
 
 export async function shareRoutine(
   routineId: string,
-  groupId: string
+  groupId: string,
+  startsAt?: string | null,
+  endsAt?: string | null,
 ): Promise<{ ok: boolean; shareId?: string; error?: string }> {
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
@@ -83,6 +87,10 @@ export async function shareRoutine(
 
   if (existing) return { ok: true, shareId: existing.id }; // already shared, nothing to do
 
+  // Determine if this is a future-scheduled share or immediate
+  const isScheduled = !!startsAt && new Date(startsAt) > new Date();
+  const shareStatus = isScheduled ? "scheduled" : "active";
+
   const { data: share, error: shareError } = await ctx.supabase
     .from("routine_shares")
     .insert({
@@ -91,35 +99,126 @@ export async function shareRoutine(
       shared_by: ctx.user.id,
       target_type: "group",
       target_group_id: groupId,
+      starts_at: startsAt ?? null,
+      ends_at: endsAt ?? null,
+      status: shareStatus,
     })
     .select("id")
     .single();
 
   if (shareError) return { ok: false, error: shareError.message };
 
-  // Fetch active players in the group that belong to this club
-  const { data: groupMembers } = await ctx.supabase
-    .from("club_group_members")
-    .select("user_id")
-    .eq("group_id", groupId);
-
-  const groupMemberIds = (groupMembers ?? []).map((m) => m.user_id);
-
-  if (groupMemberIds.length > 0) {
-    const { data: activePlayers } = await ctx.supabase
-      .from("club_members")
+  // Only enroll immediately if not scheduled for the future
+  if (!isScheduled) {
+    const { data: groupMembers } = await ctx.supabase
+      .from("club_group_members")
       .select("user_id")
-      .eq("club_id", ctx.clubId)
-      .eq("role", "player")
-      .eq("status", "active")
-      .in("user_id", groupMemberIds);
+      .eq("group_id", groupId);
 
-    const playerIds = (activePlayers ?? []).map((m) => m.user_id);
-    await enrollPlayers(ctx.supabase, routineId, share.id, playerIds);
+    const groupMemberIds = (groupMembers ?? []).map((m) => m.user_id);
+
+    if (groupMemberIds.length > 0) {
+      const { data: activePlayers } = await ctx.supabase
+        .from("club_members")
+        .select("user_id")
+        .eq("club_id", ctx.clubId)
+        .eq("role", "player")
+        .eq("status", "active")
+        .in("user_id", groupMemberIds);
+
+      const playerIds = (activePlayers ?? []).map((m) => m.user_id);
+      await enrollPlayers(ctx.supabase, routineId, share.id, playerIds, endsAt);
+    }
   }
 
   revalidatePath(`/routines/${routineId}`);
   return { ok: true, shareId: share.id };
+}
+
+// ─── Delete routine ───────────────────────────────────────────────────────────
+
+export async function deleteRoutine(
+  routineId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await getStaffContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  // Verify the routine belongs to a staff member of this club
+  const { data: routine } = await ctx.supabase
+    .from("routines")
+    .select("user_id")
+    .eq("id", routineId)
+    .single();
+
+  if (!routine) return { ok: false, error: "Rutina no encontrada." };
+
+  const { data: ownership } = await ctx.supabase
+    .from("club_members")
+    .select("id")
+    .eq("club_id", ctx.clubId)
+    .eq("user_id", routine.user_id)
+    .in("role", ["admin", "coach"])
+    .maybeSingle();
+
+  if (!ownership) return { ok: false, error: "No tenés permiso para eliminar esta rutina." };
+
+  // Clean up dependent records before deleting
+  // 1. Archive enrollments
+  await ctx.supabase
+    .from("routine_enrollments")
+    .update({ status: "past" })
+    .eq("routine_id", routineId)
+    .eq("status", "active");
+
+  // 2. Delete shares (routine_enrollments.source_share_id will be orphaned but that's fine)
+  await ctx.supabase
+    .from("routine_shares")
+    .delete()
+    .eq("routine_id", routineId);
+
+  // 3. Delete the routine
+  const { error } = await ctx.supabase
+    .from("routines")
+    .delete()
+    .eq("id", routineId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/routines");
+  return { ok: true };
+}
+
+/**
+ * Finalize a share early — sets ends_at to now and status to 'expired'.
+ * Enrollments are NOT touched (soft end: routine stays visible but marked expired).
+ */
+export async function finalizeShare(
+  shareId: string,
+  routineId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await getStaffContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const now = new Date().toISOString();
+
+  const { error } = await ctx.supabase
+    .from("routine_shares")
+    .update({ status: "expired", ends_at: now })
+    .eq("id", shareId)
+    .eq("club_id", ctx.clubId);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Also stamp ends_at on any active enrollments from this share so the
+  // mobile app picks up the deadline immediately (doesn't wait for next cron run)
+  await ctx.supabase
+    .from("routine_enrollments")
+    .update({ ends_at: now })
+    .eq("source_share_id", shareId)
+    .eq("status", "active");
+
+  revalidatePath(`/routines/${routineId}`);
+  return { ok: true };
 }
 
 export async function unshareRoutine(
@@ -179,7 +278,9 @@ export async function unshareRoutine(
 
 export async function shareRoutineWithPlayer(
   routineId: string,
-  playerId: string
+  playerId: string,
+  startsAt?: string | null,
+  endsAt?: string | null,
 ): Promise<{ ok: boolean; shareId?: string; error?: string }> {
   const ctx = await getStaffContext();
   if ("error" in ctx) return { ok: false, error: ctx.error };
@@ -210,6 +311,9 @@ export async function shareRoutineWithPlayer(
   if (existing) {
     shareId = existing.id;
   } else {
+    const isScheduled = !!startsAt && new Date(startsAt) > new Date();
+    const shareStatus = isScheduled ? "scheduled" : "active";
+
     const { data: newShare, error: shareError } = await ctx.supabase
       .from("routine_shares")
       .insert({
@@ -218,14 +322,19 @@ export async function shareRoutineWithPlayer(
         shared_by: ctx.user.id,
         target_type: "player",
         target_user_id: playerId,
+        starts_at: startsAt ?? null,
+        ends_at: endsAt ?? null,
+        status: shareStatus,
       })
       .select("id")
       .single();
     if (shareError) return { ok: false, error: shareError.message };
     shareId = newShare.id;
-  }
 
-  await enrollPlayers(ctx.supabase, routineId, shareId, [playerId]);
+    if (!isScheduled) {
+      await enrollPlayers(ctx.supabase, routineId, shareId, [playerId], endsAt);
+    }
+  }
 
   revalidatePath(`/routines/${routineId}`);
   return { ok: true, shareId };

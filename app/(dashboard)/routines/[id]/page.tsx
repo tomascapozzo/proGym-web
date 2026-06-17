@@ -56,7 +56,7 @@ export default async function RoutineDetailPage({ params }: Props) {
   // All players enrolled in this routine
   const { data: enrollmentsRaw } = await supabase
     .from("routine_enrollments")
-    .select("user_id, status, progress, enrolled_at, profile:profiles!user_id(name)")
+    .select("user_id, status, progress, enrolled_at")
     .eq("routine_id", id);
 
   type EnrollmentRef = {
@@ -64,11 +64,21 @@ export default async function RoutineDetailPage({ params }: Props) {
     status: string;
     progress: { completed_days: number[] } | null;
     enrolled_at: string;
-    profile: { name: string } | null;
   };
-  const enrollments = (enrollmentsRaw ?? []) as unknown as EnrollmentRef[];
+  const enrollments = (enrollmentsRaw ?? []) as EnrollmentRef[];
   const enrolledUserIds = enrollments.map(e => e.user_id);
-  const playerNameById = new Map(enrollments.map(e => [e.user_id, e.profile?.name || "—"]));
+
+  // Fetch names separately — routine_enrollments.user_id → auth.users, not profiles directly
+  const playerNameById = new Map<string, string>();
+  if (enrolledUserIds.length > 0) {
+    const { data: profileRows } = await supabase
+      .from("profiles")
+      .select("id, name")
+      .in("id", enrolledUserIds);
+    for (const p of profileRows ?? []) {
+      playerNameById.set(p.id, p.name || "—");
+    }
+  }
 
   // Recent sessions from any enrolled player for this routine
   const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
@@ -92,10 +102,11 @@ export default async function RoutineDetailPage({ params }: Props) {
   const isStaff = membership.role === "admin" || membership.role === "coach";
 
   // Training groups, shares, and players (staff only)
-  let trainingGroups:      { id: string; name: string }[]        = [];
-  let existingGroupShares: { id: string; group_id: string }[]    = [];
-  let players:             { id: string; name: string }[]        = [];
-  let existingPlayerShares:{ id: string; player_id: string }[]   = [];
+  type ShareInterval = { starts_at: string | null; ends_at: string | null; status: "scheduled" | "active" | "expired" };
+  let trainingGroups:      { id: string; name: string }[]                      = [];
+  let existingGroupShares: ({ id: string; group_id: string } & ShareInterval)[]  = [];
+  let players:             { id: string; name: string }[]                      = [];
+  let existingPlayerShares:({ id: string; player_id: string } & ShareInterval)[] = [];
 
   if (isStaff) {
     const [{ data: grps }, { data: allShares }, { data: playerMembers }] = await Promise.all([
@@ -106,7 +117,7 @@ export default async function RoutineDetailPage({ params }: Props) {
         .order("name"),
       supabase
         .from("routine_shares")
-        .select("id, target_type, target_group_id, target_user_id")
+        .select("id, target_type, target_group_id, target_user_id, starts_at, ends_at, status")
         .eq("routine_id", id)
         .eq("club_id", club.id),
       supabase
@@ -119,14 +130,14 @@ export default async function RoutineDetailPage({ params }: Props) {
 
     trainingGroups = grps ?? [];
 
-    type RawShare = { id: string; target_type: string; target_group_id: string | null; target_user_id: string | null };
+    type RawShare = { id: string; target_type: string; target_group_id: string | null; target_user_id: string | null; starts_at: string | null; ends_at: string | null; status: string };
     const shares = (allShares ?? []) as RawShare[];
     existingGroupShares  = shares
       .filter(s => s.target_type === "group" && s.target_group_id)
-      .map(s => ({ id: s.id, group_id: s.target_group_id! }));
+      .map(s => ({ id: s.id, group_id: s.target_group_id!, starts_at: s.starts_at, ends_at: s.ends_at, status: s.status as "scheduled" | "active" | "expired" }));
     existingPlayerShares = shares
       .filter(s => s.target_type === "player" && s.target_user_id)
-      .map(s => ({ id: s.id, player_id: s.target_user_id! }));
+      .map(s => ({ id: s.id, player_id: s.target_user_id!, starts_at: s.starts_at, ends_at: s.ends_at, status: s.status as "scheduled" | "active" | "expired" }));
 
     type PlayerMember = { user_id: string; profile: { name: string } | null };
     players = ((playerMembers ?? []) as unknown as PlayerMember[])

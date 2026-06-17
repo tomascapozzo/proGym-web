@@ -270,6 +270,9 @@ export type Database = {
           target_group_id: string | null;
           target_user_id: string | null;
           shared_at: string;
+          starts_at: string | null;
+          ends_at: string | null;
+          status: "scheduled" | "active" | "expired";
         };
         Insert: {
           routine_id: string;
@@ -278,11 +281,17 @@ export type Database = {
           target_type: "group" | "player";
           target_group_id?: string | null;
           target_user_id?: string | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          status?: "scheduled" | "active" | "expired";
         };
         Update: {
           target_type?: "group" | "player";
           target_group_id?: string | null;
           target_user_id?: string | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          status?: "scheduled" | "active" | "expired";
         };
         Relationships: [];
       };
@@ -314,6 +323,7 @@ export type Database = {
           progress: Json | null;
           enrolled_at: string;
           source_share_id: string | null;
+          ends_at: string | null;
         };
         Insert: {
           routine_id: string;
@@ -321,11 +331,13 @@ export type Database = {
           status?: string;
           progress?: Json | null;
           source_share_id?: string | null;
+          ends_at?: string | null;
         };
         Update: {
           status?: string;
           progress?: Json | null;
           source_share_id?: string | null;
+          ends_at?: string | null;
         };
         Relationships: [];
       };
