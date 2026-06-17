@@ -21,11 +21,14 @@ export type CustomExercise = {
   created_at: string;
 };
 
+export type EffortType = "rir" | "rpe";
+
 export type ExerciseEntry = {
   nombre: string;
   reps: string[];
   peso?: string[];
   rir?: string[];
+  effortType?: EffortType;
   nota?: string;
   rpe?: boolean;
 };
@@ -72,5 +75,8 @@ export const DEFAULT_EXERCISE: RoutineDayExercise = {
   nombre: "",
   series: 3,
   reps: ["", "", ""],
+  peso: ["", "", ""],
+  rir: ["", "", ""],
+  effortType: "rir",
   descanso: "60s",
 };

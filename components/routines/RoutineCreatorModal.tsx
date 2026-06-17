@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { useRoutineCreator } from "@/hooks/useRoutineCreator";
-import type { RoutineCircuit, RoutineDayExercise, RoutineDay, RpePromptType } from "@/types/routine";
+import type { EffortType, RoutineCircuit, RoutineDayExercise, RoutineDay, RpePromptType } from "@/types/routine";
 import ExercisePicker from "./ExercisePicker";
 import RepsPicker from "./RepsPicker";
 
@@ -12,6 +12,11 @@ const ROUTINE_TYPES: { value: "daily" | "weekly" | "monthly"; label: string }[] 
   { value: "daily", label: "Diaria" },
   { value: "weekly", label: "Semanal" },
   { value: "monthly", label: "Mensual" },
+];
+
+const EFFORT_TYPE_OPTIONS: { value: EffortType; label: string }[] = [
+  { value: "rir", label: "RIR" },
+  { value: "rpe", label: "RPE" },
 ];
 
 const RPE_OPTIONS: { value: RpePromptType; label: string; desc: string }[] = [
@@ -57,7 +62,7 @@ function ExerciseRow({
   onUpdateRep,
   onUpdatePeso,
   onUpdateRir,
-  onTogglePesoTipo,
+  onSetEffortType,
   onUpdateNota,
   onToggleRpe,
   onMove,
@@ -71,14 +76,15 @@ function ExerciseRow({
   onUpdateRep: (si: number, v: string) => void;
   onUpdatePeso: (si: number, v: string) => void;
   onUpdateRir: (si: number, v: string) => void;
-  onTogglePesoTipo: () => void;
+  onSetEffortType: (v: EffortType) => void;
   onUpdateNota: (v: string) => void;
   onToggleRpe: () => void;
   onMove: (dir: "up" | "down") => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
-  const isRirMode = ej.rir !== undefined;
+  const effortType = ej.effortType ?? "rir";
+  const effortLabel = effortType === "rpe" ? "RPE" : "RIR";
 
   return (
     <div style={{ background: "var(--pg-bg)", borderRadius: 10, padding: 12, marginBottom: 8, border: "1px solid var(--pg-border)" }}>
@@ -106,25 +112,24 @@ function ExerciseRow({
       </div>
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 6, gap: 8 }}>
-          <span style={{ fontSize: 10, color: "var(--pg-muted)", flex: 1 }}>{isRirMode ? "RIR por serie" : "PESO (kg) por serie"}</span>
+          <span style={{ fontSize: 10, color: "var(--pg-muted)", flex: 1 }}>PESO (kg) y {effortLabel} por serie</span>
           <div style={{ display: "flex", background: "var(--pg-surface)", borderRadius: 6, border: "1px solid var(--pg-border)", overflow: "hidden" }}>
-            <button onClick={onTogglePesoTipo} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "transparent" : "var(--pg-accent)", color: isRirMode ? "var(--pg-muted)" : "var(--pg-accent-text)", borderRadius: 5 }}>kg</button>
-            <button onClick={onTogglePesoTipo} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "var(--pg-accent)" : "transparent", color: isRirMode ? "var(--pg-accent-text)" : "var(--pg-muted)", borderRadius: 5 }}>RIR</button>
+            {EFFORT_TYPE_OPTIONS.map(({ value, label }) => (
+              <button key={value} onClick={() => onSetEffortType(value)} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: effortType === value ? "var(--pg-accent)" : "transparent", color: effortType === value ? "var(--pg-accent-text)" : "var(--pg-muted)", borderRadius: 5 }}>{label}</button>
+            ))}
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr", gap: 5, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr 1fr", gap: 5, alignItems: "center" }}>
           <span style={{ fontSize: 10, color: "var(--pg-muted)" }} />
           <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>REPS</span>
-          <span style={{ fontSize: 10, textAlign: "center", color: isRirMode ? "var(--pg-accent)" : "var(--pg-muted)", fontWeight: isRirMode ? 700 : 400 }}>{isRirMode ? "RIR" : "PESO (kg)"}</span>
+          <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>PESO (kg)</span>
+          <span style={{ fontSize: 10, textAlign: "center", color: "var(--pg-accent)", fontWeight: 700 }}>{effortLabel}</span>
           {ej.reps.map((rep, si) => (
             <React.Fragment key={si}>
               <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>S{si + 1}</span>
               <RepsPicker value={rep} onChange={(v) => onUpdateRep(si, v)} />
-              {isRirMode ? (
-                <input value={ej.rir![si] ?? ""} onChange={(e) => onUpdateRir(si, e.target.value)} placeholder="0" type="number" style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center", background: "var(--pg-accent-bg)", color: "var(--pg-accent)", border: "1px solid var(--pg-accent)", fontWeight: 700 }} />
-              ) : (
-                <input value={ej.peso?.[si] ?? ""} onChange={(e) => onUpdatePeso(si, e.target.value)} placeholder="&mdash;" style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center" }} />
-              )}
+              <input value={ej.peso?.[si] ?? ""} onChange={(e) => onUpdatePeso(si, e.target.value)} placeholder="&mdash;" style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center" }} />
+              <input value={ej.rir?.[si] ?? ""} onChange={(e) => onUpdateRir(si, e.target.value)} placeholder="0" type="number" style={{ ...inputStyle, padding: "5px 8px", fontSize: 12, textAlign: "center", background: "var(--pg-accent-bg)", color: "var(--pg-accent)", border: "1px solid var(--pg-accent)", fontWeight: 700 }} />
             </React.Fragment>
           ))}
         </div>
@@ -147,7 +152,7 @@ function CircuitExerciseRow({
   onUpdateExRep,
   onUpdateExPeso,
   onUpdateExRir,
-  onToggleExPesoTipo,
+  onSetExEffortType,
   onUpdateExNota,
   onToggleExRpe,
   totalEjercicios,
@@ -160,12 +165,13 @@ function CircuitExerciseRow({
   onUpdateExRep: (ri: number, v: string) => void;
   onUpdateExPeso: (ri: number, v: string) => void;
   onUpdateExRir: (ri: number, v: string) => void;
-  onToggleExPesoTipo: () => void;
+  onSetExEffortType: (v: EffortType) => void;
   onUpdateExNota: (v: string) => void;
   onToggleExRpe: () => void;
   totalEjercicios: number;
 }) {
-  const isRirMode = ex.rir !== undefined;
+  const effortType = ex.effortType ?? "rir";
+  const effortLabel = effortType === "rpe" ? "RPE" : "RIR";
 
   return (
     <div style={{ background: "var(--pg-bg)", borderRadius: 8, padding: 10, marginBottom: 6, border: "1px solid var(--pg-border)" }}>
@@ -178,25 +184,24 @@ function CircuitExerciseRow({
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 5, gap: 8 }}>
-        <span style={{ fontSize: 10, color: "var(--pg-muted)", flex: 1 }}>{isRirMode ? "RIR por ronda" : "PESO (kg) por ronda"}</span>
+        <span style={{ fontSize: 10, color: "var(--pg-muted)", flex: 1 }}>PESO (kg) y {effortLabel} por ronda</span>
         <div style={{ display: "flex", background: "var(--pg-surface)", borderRadius: 6, border: "1px solid var(--pg-border)", overflow: "hidden" }}>
-          <button onClick={onToggleExPesoTipo} style={{ padding: "2px 7px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "transparent" : "var(--pg-accent)", color: isRirMode ? "var(--pg-muted)" : "var(--pg-accent-text)", borderRadius: 5 }}>kg</button>
-          <button onClick={onToggleExPesoTipo} style={{ padding: "2px 7px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: isRirMode ? "var(--pg-accent)" : "transparent", color: isRirMode ? "var(--pg-accent-text)" : "var(--pg-muted)", borderRadius: 5 }}>RIR</button>
+          {EFFORT_TYPE_OPTIONS.map(({ value, label }) => (
+            <button key={value} onClick={() => onSetExEffortType(value)} style={{ padding: "2px 7px", fontSize: 10, fontWeight: 700, border: "none", cursor: "pointer", background: effortType === value ? "var(--pg-accent)" : "transparent", color: effortType === value ? "var(--pg-accent-text)" : "var(--pg-muted)", borderRadius: 5 }}>{label}</button>
+          ))}
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr", gap: 5, alignItems: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr 1fr", gap: 5, alignItems: "center" }}>
         <span style={{ fontSize: 10, color: "var(--pg-muted)" }} />
         <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>REPS</span>
-        <span style={{ fontSize: 10, textAlign: "center", color: isRirMode ? "var(--pg-accent)" : "var(--pg-muted)", fontWeight: isRirMode ? 700 : 400 }}>{isRirMode ? "RIR" : "PESO (kg)"}</span>
+        <span style={{ fontSize: 10, color: "var(--pg-muted)", textAlign: "center" }}>PESO (kg)</span>
+        <span style={{ fontSize: 10, textAlign: "center", color: "var(--pg-accent)", fontWeight: 700 }}>{effortLabel}</span>
         {ex.reps.map((rep, ri) => (
           <React.Fragment key={ri}>
             <span style={{ fontSize: 11, color: "var(--pg-muted)" }}>R{ri + 1}</span>
             <RepsPicker value={rep} onChange={(v) => onUpdateExRep(ri, v)} />
-            {isRirMode ? (
-              <input value={ex.rir![ri] ?? ""} onChange={(e) => onUpdateExRir(ri, e.target.value)} placeholder="0" type="number" style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center", background: "var(--pg-accent-bg)", color: "var(--pg-accent)", border: "1px solid var(--pg-accent)", fontWeight: 700 }} />
-            ) : (
-              <input value={ex.peso?.[ri] ?? ""} onChange={(e) => onUpdateExPeso(ri, e.target.value)} placeholder="&mdash;" style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center" }} />
-            )}
+            <input value={ex.peso?.[ri] ?? ""} onChange={(e) => onUpdateExPeso(ri, e.target.value)} placeholder="&mdash;" style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center" }} />
+            <input value={ex.rir?.[ri] ?? ""} onChange={(e) => onUpdateExRir(ri, e.target.value)} placeholder="0" type="number" style={{ ...inputStyle, padding: "4px 6px", fontSize: 11, textAlign: "center", background: "var(--pg-accent-bg)", color: "var(--pg-accent)", border: "1px solid var(--pg-accent)", fontWeight: 700 }} />
           </React.Fragment>
         ))}
       </div>
@@ -221,7 +226,7 @@ function CircuitCard({
   onUpdateExRep,
   onUpdateExPeso,
   onUpdateExRir,
-  onToggleExPesoTipo,
+  onSetExEffortType,
   onUpdateExNota,
   onToggleExRpe,
 }: {
@@ -235,7 +240,7 @@ function CircuitCard({
   onUpdateExRep: (exIdx: number, ri: number, v: string) => void;
   onUpdateExPeso: (exIdx: number, ri: number, v: string) => void;
   onUpdateExRir: (exIdx: number, ri: number, v: string) => void;
-  onToggleExPesoTipo: (exIdx: number) => void;
+  onSetExEffortType: (exIdx: number, v: EffortType) => void;
   onUpdateExNota: (exIdx: number, v: string) => void;
   onToggleExRpe: (exIdx: number) => void;
 }) {
@@ -273,7 +278,7 @@ function CircuitCard({
           onUpdateExRep={(ri, v) => onUpdateExRep(exIdx, ri, v)}
           onUpdateExPeso={(ri, v) => onUpdateExPeso(exIdx, ri, v)}
           onUpdateExRir={(ri, v) => onUpdateExRir(exIdx, ri, v)}
-          onToggleExPesoTipo={() => onToggleExPesoTipo(exIdx)}
+          onSetExEffortType={(v) => onSetExEffortType(exIdx, v)}
           onUpdateExNota={(v) => onUpdateExNota(exIdx, v)}
           onToggleExRpe={() => onToggleExRpe(exIdx)}
         />
@@ -300,7 +305,7 @@ function DayCard({
   onUpdateRep,
   onUpdatePeso,
   onUpdateRir,
-  onTogglePesoTipo,
+  onSetEffortType,
   onUpdateNota,
   onToggleRpe,
   onOpenExPicker,
@@ -314,7 +319,7 @@ function DayCard({
   onUpdateCircuitExRep,
   onUpdateCircuitExPeso,
   onUpdateCircuitExRir,
-  onToggleCircuitExPesoTipo,
+  onSetCircuitExEffortType,
   onUpdateCircuitExNota,
   onToggleCircuitExRpe,
   onToggleCircuitRpe,
@@ -333,7 +338,7 @@ function DayCard({
   onUpdateRep: (exIdx: number, si: number, v: string) => void;
   onUpdatePeso: (exIdx: number, si: number, v: string) => void;
   onUpdateRir: (exIdx: number, si: number, v: string) => void;
-  onTogglePesoTipo: (exIdx: number) => void;
+  onSetEffortType: (exIdx: number, v: EffortType) => void;
   onUpdateNota: (exIdx: number, v: string) => void;
   onToggleRpe: (exIdx: number) => void;
   onOpenExPicker: () => void;
@@ -347,7 +352,7 @@ function DayCard({
   onUpdateCircuitExRep: (circIdx: number, exIdx: number, ri: number, v: string) => void;
   onUpdateCircuitExPeso: (circIdx: number, exIdx: number, ri: number, v: string) => void;
   onUpdateCircuitExRir: (circIdx: number, exIdx: number, ri: number, v: string) => void;
-  onToggleCircuitExPesoTipo: (circIdx: number, exIdx: number) => void;
+  onSetCircuitExEffortType: (circIdx: number, exIdx: number, v: EffortType) => void;
   onUpdateCircuitExNota: (circIdx: number, exIdx: number, v: string) => void;
   onToggleCircuitExRpe: (circIdx: number, exIdx: number) => void;
   onToggleCircuitRpe: (circIdx: number) => void;
@@ -390,7 +395,7 @@ function DayCard({
               onUpdateRep={(si, v) => onUpdateRep(exIdx, si, v)}
               onUpdatePeso={(si, v) => onUpdatePeso(exIdx, si, v)}
               onUpdateRir={(si, v) => onUpdateRir(exIdx, si, v)}
-              onTogglePesoTipo={() => onTogglePesoTipo(exIdx)}
+              onSetEffortType={(v) => onSetEffortType(exIdx, v)}
               onUpdateNota={(v) => onUpdateNota(exIdx, v)}
               onToggleRpe={() => onToggleRpe(exIdx)}
               onMove={(dir) => onMoveExercise(exIdx, dir)}
@@ -412,7 +417,7 @@ function DayCard({
               onUpdateExRep={(exIdx, ri, v) => onUpdateCircuitExRep(circIdx, exIdx, ri, v)}
               onUpdateExPeso={(exIdx, ri, v) => onUpdateCircuitExPeso(circIdx, exIdx, ri, v)}
               onUpdateExRir={(exIdx, ri, v) => onUpdateCircuitExRir(circIdx, exIdx, ri, v)}
-              onToggleExPesoTipo={(exIdx) => onToggleCircuitExPesoTipo(circIdx, exIdx)}
+              onSetExEffortType={(exIdx, v) => onSetCircuitExEffortType(circIdx, exIdx, v)}
               onUpdateExNota={(exIdx, v) => onUpdateCircuitExNota(circIdx, exIdx, v)}
               onToggleExRpe={(exIdx) => onToggleCircuitExRpe(circIdx, exIdx)}
             />
@@ -458,7 +463,7 @@ export default function RoutineCreatorModal({
   updateExerciseRep,
   updateExercisePeso,
   updateExerciseRir,
-  toggleExercisePesoTipo,
+  setExerciseEffortType,
   updateExerciseNota,
   toggleExerciseRpe,
   removeExercise,
@@ -470,7 +475,7 @@ export default function RoutineCreatorModal({
   updateCircuitExRep,
   updateCircuitExPeso,
   updateCircuitExRir,
-  toggleCircuitExPesoTipo,
+  setCircuitExEffortType,
   updateCircuitExNota,
   toggleCircuitRpe,
   toggleCircuitExRpe,
@@ -541,7 +546,7 @@ export default function RoutineCreatorModal({
               onUpdateRep={(exIdx, si, v) => updateExerciseRep(dayIdx, exIdx, si, v)}
               onUpdatePeso={(exIdx, si, v) => updateExercisePeso(dayIdx, exIdx, si, v)}
               onUpdateRir={(exIdx, si, v) => updateExerciseRir(dayIdx, exIdx, si, v)}
-              onTogglePesoTipo={(exIdx) => toggleExercisePesoTipo(dayIdx, exIdx)}
+              onSetEffortType={(exIdx, v) => setExerciseEffortType(dayIdx, exIdx, v)}
               onUpdateNota={(exIdx, v) => updateExerciseNota(dayIdx, exIdx, v)}
               onToggleRpe={(exIdx) => toggleExerciseRpe(dayIdx, exIdx)}
               onOpenExPicker={() => openExPickerForDay(dayIdx)}
@@ -555,7 +560,7 @@ export default function RoutineCreatorModal({
               onUpdateCircuitExRep={(circIdx, exIdx, ri, v) => updateCircuitExRep(dayIdx, circIdx, exIdx, ri, v)}
               onUpdateCircuitExPeso={(circIdx, exIdx, ri, v) => updateCircuitExPeso(dayIdx, circIdx, exIdx, ri, v)}
               onUpdateCircuitExRir={(circIdx, exIdx, ri, v) => updateCircuitExRir(dayIdx, circIdx, exIdx, ri, v)}
-              onToggleCircuitExPesoTipo={(circIdx, exIdx) => toggleCircuitExPesoTipo(dayIdx, circIdx, exIdx)}
+              onSetCircuitExEffortType={(circIdx, exIdx, v) => setCircuitExEffortType(dayIdx, circIdx, exIdx, v)}
               onUpdateCircuitExNota={(circIdx, exIdx, v) => updateCircuitExNota(dayIdx, circIdx, exIdx, v)}
               onToggleCircuitExRpe={(circIdx, exIdx) => toggleCircuitExRpe(dayIdx, circIdx, exIdx)}
               onToggleCircuitRpe={(circIdx) => toggleCircuitRpe(dayIdx, circIdx)}
