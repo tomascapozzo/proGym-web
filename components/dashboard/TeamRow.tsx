@@ -16,7 +16,7 @@ const ROLE_COLOR: Record<ClubRole, { bg: string; fg: string }> = {
   player: { bg: "var(--pg-accent-bg)", fg: "var(--pg-accent)" },
 };
 
-const COL = "28px 1.5fr 0.9fr 70px 70px 1fr 100px";
+const COL = "28px 2.4fr 70px 70px 1fr 100px";
 
 function initials(name: string): string {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
@@ -64,10 +64,6 @@ export default function TeamRow({ memberId, role, status, joinedAt, name, lastna
 
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {fullName}
-      </div>
-
-      <div style={{ fontSize: 11, color: "var(--pg-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {lastname || "—"}
       </div>
 
       <span style={{

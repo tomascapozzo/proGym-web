@@ -20,8 +20,8 @@ interface GroupMembershipRow {
   group: { id: string; name: string } | null;
 }
 
-const COL = "28px 1.5fr 0.9fr 70px 70px 1fr 100px";
-const HEADERS = ["", "Miembro", "Apellido", "Rol", "Estado", "Planteles", "Se unió"];
+const COL = "28px 2.4fr 70px 70px 1fr 100px";
+const HEADERS = ["", "Miembro", "Rol", "Estado", "Planteles", "Se unió"];
 
 export default async function TeamPage() {
   const { user, membership, club } = await getCurrentMembership();

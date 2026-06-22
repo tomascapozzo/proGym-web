@@ -73,10 +73,10 @@ export default async function RoutineDetailPage({ params }: Props) {
   if (enrolledUserIds.length > 0) {
     const { data: profileRows } = await supabase
       .from("profiles")
-      .select("id, name")
+      .select("id, name, lastname")
       .in("id", enrolledUserIds);
     for (const p of profileRows ?? []) {
-      playerNameById.set(p.id, p.name || "—");
+      playerNameById.set(p.id, [p.name, p.lastname].filter(Boolean).join(" ") || "—");
     }
   }
 
@@ -122,7 +122,7 @@ export default async function RoutineDetailPage({ params }: Props) {
         .eq("club_id", club.id),
       supabase
         .from("club_members")
-        .select("user_id, profile:profiles(name)")
+        .select("user_id, profile:profiles(name, lastname)")
         .eq("club_id", club.id)
         .eq("role", "player")
         .eq("status", "active"),
@@ -139,9 +139,9 @@ export default async function RoutineDetailPage({ params }: Props) {
       .filter(s => s.target_type === "player" && s.target_user_id)
       .map(s => ({ id: s.id, player_id: s.target_user_id!, starts_at: s.starts_at, ends_at: s.ends_at, status: s.status as "scheduled" | "active" | "expired" }));
 
-    type PlayerMember = { user_id: string; profile: { name: string } | null };
+    type PlayerMember = { user_id: string; profile: { name: string; lastname: string } | null };
     players = ((playerMembers ?? []) as unknown as PlayerMember[])
-      .map(m => ({ id: m.user_id, name: m.profile?.name?.trim() || "Sin nombre" }))
+      .map(m => ({ id: m.user_id, name: [m.profile?.name, m.profile?.lastname].filter(Boolean).join(" ").trim() || "Sin nombre" }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 

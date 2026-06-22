@@ -175,7 +175,7 @@ export default async function DashboardPage() {
             </div>
             <div style={{ flex: 1, overflowY: "auto" }}>
               {members.map(m => {
-                const name = m.profile?.name?.trim() || "Sin nombre";
+                const name = [m.profile?.name?.trim(), m.profile?.lastname?.trim()].filter(Boolean).join(" ") || "Sin nombre";
                 const count = sessionsThisWeek.get(m.user_id) ?? 0;
                 const last = lastSession.get(m.user_id);
                 const roleColor = ROLE_COLOR[m.role];

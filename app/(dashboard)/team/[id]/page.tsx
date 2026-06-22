@@ -242,10 +242,7 @@ export default async function TeamMemberPage({
               {initials(name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--pg-text)", marginBottom: 3 }}>{name}</div>
-              <div style={{ fontSize: 11, color: "var(--pg-muted)" }}>
-                {member.profile?.lastname || "—"}
-              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--pg-text)" }}>{name}</div>
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
               <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 4, background: ROLE_COLOR[member.role].bg, color: ROLE_COLOR[member.role].fg, textTransform: "uppercase", letterSpacing: "0.5px" }}>

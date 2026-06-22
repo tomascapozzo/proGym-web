@@ -98,8 +98,7 @@ export default function GroupMemberManager({
                 <div key={m.user_id} style={memberRow}>
                   <Avatar name={m.name} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{m.name || "Sin nombre"}</div>
-                    {m.lastname && <div style={{ fontSize: 10, color: "var(--pg-muted)" }}>{m.lastname}</div>}
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pg-text)" }}>{[m.name, m.lastname].filter(Boolean).join(" ") || "Sin nombre"}</div>
                   </div>
                   <button
                     onClick={() => handleAdd(m.user_id)}
