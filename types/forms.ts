@@ -58,11 +58,13 @@ export type DistributionTargetType = "group" | "player";
 export type ClubFormDistribution = {
   id: string;
   form_id: string;
+  club_id: string;
+  distributed_by: string;
   target_type: DistributionTargetType;
-  target_id: string;
+  target_group_id: string | null;
+  target_user_id: string | null;
   due_at: string | null;
-  created_by: string;
-  created_at: string;
+  distributed_at: string;
 };
 
 export type ClubFormResponse = {

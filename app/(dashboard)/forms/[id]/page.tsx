@@ -16,7 +16,7 @@ export default async function FormDetailPage({ params }: { params: Promise<{ id:
   const [{ data: form }, { data: questions }, { data: distributions }, { data: schedules }] = await Promise.all([
     supabase.from("club_forms").select("*").eq("id", id).eq("club_id", club.id).single(),
     supabase.from("club_form_questions").select("*").eq("form_id", id).order("order_index"),
-    supabase.from("club_form_distributions").select("*").eq("form_id", id).order("created_at"),
+    supabase.from("club_form_distributions").select("*").eq("form_id", id).order("distributed_at"),
     supabase.from("club_form_schedules").select("*").eq("form_id", id).order("created_at"),
   ]);
 

@@ -401,9 +401,8 @@ function DistributionPanel({ formId, groups, players, distributions, onUpdate }:
   };
 
   const getTargetLabel = (d: ClubFormDistribution) => {
-    const id = d.target_id;
-    if (d.target_type === "group") return groups.find((g) => g.id === id)?.name ?? id;
-    return players.find((p) => p.id === id)?.name ?? id;
+    if (d.target_type === "group") return groups.find((g) => g.id === d.target_group_id)?.name ?? d.target_group_id ?? "—";
+    return players.find((p) => p.id === d.target_user_id)?.name ?? d.target_user_id ?? "—";
   };
 
   return (
@@ -657,8 +656,8 @@ export default function FormBuilderClient({ clubId, form: initialForm, questions
   const [title, setTitle] = useState(initialForm?.title ?? "");
   const [description, setDescription] = useState(initialForm?.description ?? "");
   const [status, setStatus] = useState(initialForm?.status ?? "draft");
-  const [templateTypeState, setTemplateTypeState] = useState<"anamnesis" | "wellness">(
-    initialForm?.template_type ?? "wellness",
+  const [templateTypeState, setTemplateTypeState] = useState<"anamnesis" | "wellness" | null>(
+    initialForm?.template_type ?? null,
   );
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaError, setMetaError] = useState("");
@@ -669,7 +668,7 @@ export default function FormBuilderClient({ clubId, form: initialForm, questions
 
   const templateType = initialForm?.template_type ?? null;
   const isTemplate = templateType !== null;
-  const TEMPLATE_LABEL: Record<string, string> = { anamnesis: "Anamnesis", wellness: "Wellness" };
+  const TEMPLATE_LABEL: Record<string, string> = { anamnesis: "Anamnesis", wellness: "Wellness", "": "Personalizado" };
 
   const saveMeta = async () => {
     if (!title.trim()) return;
@@ -754,11 +753,12 @@ export default function FormBuilderClient({ clubId, form: initialForm, questions
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <select
-                value={templateTypeState}
-                onChange={(e) => setTemplateTypeState(e.target.value as "anamnesis" | "wellness")}
+                value={templateTypeState ?? ""}
+                onChange={(e) => setTemplateTypeState((e.target.value as "anamnesis" | "wellness") || null)}
                 disabled={!!formId}
                 style={{ ...inputStyle, cursor: formId ? "not-allowed" : "pointer", opacity: formId ? 0.6 : 1 }}
               >
+                <option value="">Personalizado</option>
                 <option value="wellness">Wellness</option>
                 <option value="anamnesis">Anamnesis</option>
               </select>

@@ -4,6 +4,25 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { FormStatus, FormTemplateType, QuestionType, QuestionOptions, ClubFormSchedule } from "@/types/forms";
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+async function sendFormNotification(distributionIds: string[]) {
+  if (distributionIds.length === 0) return;
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-form-notification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ distribution_ids: distributionIds }),
+    });
+  } catch {
+    // Best-effort — never let a notification failure block the server action
+  }
+}
+
 async function getStaffContext() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -171,34 +190,34 @@ export async function distributeForm(
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
   // Prevent duplicate distributions
-  const dupQuery = ctx.supabase
+  const targetCol = targetType === "group" ? "target_group_id" : "target_user_id";
+  const { data: existing } = await ctx.supabase
     .from("club_form_distributions")
     .select("id")
     .eq("form_id", formId)
-    .eq("target_type", targetType);
-  dupQuery.eq("target_id", targetId);
-  const { data: existing } = await dupQuery.maybeSingle();
+    .eq("target_type", targetType)
+    .eq(targetCol, targetId)
+    .maybeSingle();
 
   if (existing) return { ok: false, error: "Este formulario ya fue enviado a ese destino." };
 
-  const payload = {
-    form_id: formId,
-    created_by: ctx.user.id,
-    target_type: targetType,
-    target_id: targetId,
-    due_at: dueAt || null,
-  };
-  console.log("[distributeForm] inserting:", JSON.stringify(payload));
-
-  const { data: inserted, error } = await ctx.supabase
+  const { data: newDist, error } = await ctx.supabase
     .from("club_form_distributions")
-    .insert(payload)
-    .select("id");
-
-  console.log("[distributeForm] result:", inserted, "error:", error?.message);
+    .insert({
+      form_id: formId,
+      club_id: ctx.clubId,
+      distributed_by: ctx.user.id,
+      target_type: targetType,
+      target_group_id: targetType === "group" ? targetId : null,
+      target_user_id: targetType === "player" ? targetId : null,
+      due_at: dueAt || null,
+    })
+    .select("id")
+    .single();
 
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/forms/${formId}`);
+  sendFormNotification([newDist.id]);
   return { ok: true };
 }
 
@@ -220,29 +239,33 @@ export async function distributeFormToAllPlayers(
 
   const { data: existing } = await ctx.supabase
     .from("club_form_distributions")
-    .select("target_id")
+    .select("target_user_id")
     .eq("form_id", formId)
     .eq("target_type", "player");
 
-  const existingIds = new Set((existing ?? []).map((e) => e.target_id));
+  const existingIds = new Set((existing ?? []).map((e) => e.target_user_id));
   const toInsert = members
     .filter((m) => !existingIds.has(m.user_id))
     .map((m) => ({
       form_id: formId,
-      created_by: ctx.user.id,
+      club_id: ctx.clubId,
+      distributed_by: ctx.user.id,
       target_type: "player" as const,
-      target_id: m.user_id,
+      target_group_id: null,
+      target_user_id: m.user_id,
       due_at: dueAt || null,
     }));
 
   if (toInsert.length === 0) return { ok: false, error: "Todos los jugadores ya recibieron este formulario." };
 
-  const { error } = await ctx.supabase
+  const { data: inserted, error } = await ctx.supabase
     .from("club_form_distributions")
-    .insert(toInsert);
+    .insert(toInsert)
+    .select("id");
 
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/forms/${formId}`);
+  sendFormNotification((inserted ?? []).map((d) => d.id));
   return { ok: true, count: toInsert.length };
 }
 

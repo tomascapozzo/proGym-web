@@ -439,22 +439,27 @@ export type Database = {
         Row: {
           id: string;
           form_id: string;
+          distributed_by: string;
+          club_id: string;
           target_type: "group" | "player";
-          target_id: string;
+          target_group_id: string | null;
+          target_user_id: string | null;
+          distributed_at: string;
           due_at: string | null;
-          created_by: string;
-          created_at: string;
         };
         Insert: {
           form_id: string;
+          distributed_by: string;
+          club_id: string;
           target_type: "group" | "player";
-          target_id: string;
+          target_group_id?: string | null;
+          target_user_id?: string | null;
           due_at?: string | null;
-          created_by: string;
         };
         Update: {
           target_type?: "group" | "player";
-          target_id?: string;
+          target_group_id?: string | null;
+          target_user_id?: string | null;
           due_at?: string | null;
         };
         Relationships: [];
