@@ -3,8 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-const PLACEHOLDER = "00000000-0000-0000-0000-000000000000";
-
 async function getStaffContext() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -392,7 +392,7 @@ function DistributionPanel({ formId, groups, players, distributions, onUpdate }:
     if (!res.ok) { setError(res.error ?? "Error"); return; }
     setTargetId("");
     setDueAt("");
-    // Optimistic update — page will refresh on next nav
+    router.refresh();
   };
 
   const remove = async (distId: string) => {
